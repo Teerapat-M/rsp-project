@@ -10,18 +10,34 @@ Target scale is small (~32 concurrent pairs). That number drives one important a
 
 ### Auth
 
-- **Google OAuth** for registered accounts.
-- **Guest** play: the player picks a display name, no email. Guests are still real `users` rows (`is_guest = true`, `email` null).
-- Both paths mint a **JWT**. The server trusts the JWT, not the client, for who is in a room.
+Three ways in. Every path mints a short-lived **access JWT**. The server trusts that JWT (not the client) for who is in a room.
 
-Guests do **not** get an `auth_providers` row. That table is for external IdPs (Google in this project). A guest who later signs in with Google is a later-phase concern; phase 4 ships the two paths as separate users.
+| Path | How | `users` row |
+| --- | --- | --- |
+| **Username / password** | Register with username, password, optional email. Login with username + password. | `is_guest = false`, unique `username`, `password_hash` |
+| **Google OAuth** | Sign in with Google. | `is_guest = false`, `email` from Google, row in `auth_providers` |
+| **Guest** | Pick a display name. No username, email, or password. | `is_guest = true` |
+
+**Register** (password path): username, password, optional email. Display name defaults to the username if the UI does not ask for a separate one. Username is unique ignoring case, 3–20 chars `[A-Za-z0-9_]`. Email is unique when present; omitted email means **Forgot password** is unavailable for that account.
+
+**Login:** username + password. (Email is optional, so it is not the login id.)
+
+**Remember me** (login checkbox): still a short access JWT, plus a **refresh token** with a longer `expires_at` (about 30 days vs ~7 days when unchecked). The raw token is shown once; the DB stores only a hash. Logout revokes it. Phase 4 picks the exact TTLs via env.
+
+**Forgot password:** submit the account email. If it matches a password user, insert a one-use `password_reset_tokens` row (hashed, short TTL) and send a link. In **dev**, skip a real mailer: log the reset URL. Always return the same response whether the email exists or not (no account enumeration). Users with no email cannot reset this way.
+
+**Passwords:** hash with **bcrypt** (`golang.org/x/crypto/bcrypt`, cost ≥ 10). Never store or log the plaintext.
+
+**Guest → registered (upgrade):** keep the same `users.id` so stats and match history stay. An authenticated guest sets username + password (+ optional email), then `is_guest = false`. Reject if the username (or email) is taken. This is simpler than merging a guest into some other account.
+
+Google and password can later be linked on the same user (`auth_providers` + `password_hash`). Phase 4 ships the three entry paths, remember-me, reset, and guest upgrade. Linking Google onto an existing password user can wait if time is tight.
 
 ### Rooms
 
 - Host creates a room with:
   - `wins_to_finish` — first player to this many **round wins** ends the match (draws do not count).
   - `turn_seconds` — countdown length for each round.
-- The server generates a **passcode**. Passcodes are unique among rooms that are not `closed` (partial unique index). After close, the code may be reused.
+- The server generates a **6-digit passcode** (`000000`–`999999`). Passcodes are unique among rooms that are not `closed` (partial unique index). After close, the code may be reused. Collision → generate again.
 - Others join by passcode. A room is two players.
 
 ### Gameplay
@@ -48,14 +64,16 @@ Per user, persisted at round/match end:
 
 ## Data model
 
-PostgreSQL. UUIDs for public ids. See `db/migrations/000001_init.up.sql`.
+PostgreSQL. UUIDs for public ids. `db/migrations/000001_init` then `000002_auth_and_passcode` (do not edit applied v1).
 
 | Table | Role |
 | --- | --- |
-| `users` | Account. `email` null iff guest. |
-| `auth_providers` | Google (and future IdPs): `(provider, provider_user_id)` unique. |
+| `users` | Account. Guests: `is_guest`, no username/email/hash. Password users: unique `username` + `password_hash`, email optional. |
+| `auth_providers` | Google (and future IdPs): `(provider, provider_user_id)` unique. Guests have no row here. |
+| `refresh_tokens` | Hashed refresh tokens; `expires_at` is longer when Remember me was checked. |
+| `password_reset_tokens` | Hashed, single-use, expiring. |
 | `user_stats` | 1:1 with user, updated when a match ends. |
-| `rooms` | Host, passcode, settings, `waiting` / `playing` / `closed`. |
+| `rooms` | Host, 6-digit `passcode`, settings, `waiting` / `playing` / `closed`. |
 | `room_players` | Who joined which room. |
 | `matches` | One game series in a room. `winner_id` null until someone wins (or stays null if abandoned). |
 | `rounds` | `winner_id` null means draw. |
@@ -64,9 +82,10 @@ PostgreSQL. UUIDs for public ids. See `db/migrations/000001_init.up.sql`.
 Adjustments from the original draft (kept small):
 
 - `matches.winner_id` is nullable so an in-progress or abandoned match can be stored.
-- Check constraints: `wins_to_finish >= 1`, `turn_seconds >= 1`, guest XOR email.
+- Username/password, refresh tokens, and reset tokens added in v2 (Penpot review). Email is no longer required for every non-guest — password users may omit it.
+- `rooms.passcode` is exactly six digits (`^[0-9]{6}$`), unique among non-closed rooms.
+- Check constraints: `wins_to_finish >= 1`, `turn_seconds >= 1`, guest has no credentials.
 - Indexes on FKs used by history queries (`matches.room_id`, `rounds.match_id`, `auth_providers.user_id`).
-- No extra columns (`updated_at`, chat, rematch). Add them if a later phase needs them.
 
 Active gameplay (hidden moves, ready flags, remaining seconds) is **not** in these tables. It lives on the in-memory match in the Go server.
 
@@ -76,7 +95,7 @@ Active gameplay (hidden moves, ready flags, remaining seconds) is **not** in the
 
 ```
 Browser (React + Vite + dnd-kit, /web)
-    │  REST: auth, create/join room, stats
+    │  REST: auth (guest / password / Google), create/join room, stats
     │  WebSocket: match events
     ▼
 Go API (gin) + WS hub
@@ -113,7 +132,7 @@ web/                React app (phase 5)
 | **1 — logic + scaffold** (this PR) | `SPEC.md`, idiomatic repo, Compose + Postgres + initial schema, `internal/game` + table-driven tests | HTTP game API, WS, auth, UI |
 | **2 — rooms / passcode / websocket** | Create/join room by passcode, WS connect with JWT placeholder or session id, presence in a room | Real Google/guest login, countdown UI |
 | **3 — countdown / ready / resolve** | Server timer, submit + ready, hide moves, resolve, `wins_to_finish`, persist round/match rows | Auth, polished UI |
-| **4 — guest then Google auth** | Guest display name + JWT, Google OAuth + JWT, `users` / `auth_providers` | Stats page, drag-drop |
+| **4 — auth** | Guest JWT; username/password register + login; Remember me (refresh token); Forgot password (dev: log the link); bcrypt; guest upgrade to a password account; then Google OAuth | Stats page, drag-drop |
 | **5 — stats / history + React drag-drop** | `user_stats` + history API, React + Vite in `/web`, dnd-kit cards → drop slot → Ready | Production hosting |
 | **6 — deploy** | Dockerfile, Compose or a small VM, env-based config, README for a stranger to run it | Extra game modes |
 

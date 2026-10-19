@@ -48,7 +48,7 @@ make run
 # GET http://localhost:8080/health
 ```
 
-It does not talk to Postgres yet. Room/WS/auth come in phases 2–4.
+It does not talk to Postgres yet. Rooms (6-digit passcode), WS, and auth (guest / username+password / Google) come in phases 2–4.
 
 ## Makefile
 
