@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rsp
+      POSTGRES_PASSWORD: rsp
+      POSTGRES_DB: rsp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rsp -d rsp"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  # golang-migrate one-shot. Shares Postgres's network namespace so the DSN is
+  # localhost (sidecar, not a second routable service). Exit 0 = schema current.
+  migrate:
+    image: migrate/migrate:v4.18.1
+    network_mode: service:postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./db/migrations:/migrations:ro
+    command:
+      [
+        "-verbose",
+        "-path=/migrations",
+        "-database=postgres://rsp:rsp@127.0.0.1:5432/rsp?sslmode=disable",
+        "up",
+      ]
+    restart: on-failure
+
+volumes:
+  pgdata:

@@ -1,0 +1,17 @@
+# Local env (never commit secrets)
+.env
+
+# Go
+bin/
+dist/
+*.exe
+*.test
+*.out
+coverage.out
+vendor/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

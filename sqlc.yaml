@@ -1,0 +1,14 @@
+# sqlc generates type-safe Go from SQL. Query files land in later phases
+# (auth, stats). Schema is the golang-migrate files so we do not duplicate DDL.
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "db/migrations"
+    queries: "db/queries"
+    gen:
+      go:
+        package: "sqlcdb"
+        out: "internal/sqlcdb"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_pointers_for_null_types: true

@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS round_moves;
+DROP TABLE IF EXISTS rounds;
+DROP TABLE IF EXISTS matches;
+DROP TABLE IF EXISTS room_players;
+DROP TABLE IF EXISTS rooms;
+DROP TABLE IF EXISTS user_stats;
+DROP TABLE IF EXISTS auth_providers;
+DROP TABLE IF EXISTS users;
+
+DROP TYPE IF EXISTS move_kind;
+DROP TYPE IF EXISTS room_status;
