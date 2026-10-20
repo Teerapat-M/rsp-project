@@ -1,0 +1,165 @@
+export type Move = 'rock' | 'paper' | 'scissors' | 'timeout'
+export type PlayableMove = 'rock' | 'paper' | 'scissors'
+export type AvatarKind = PlayableMove
+
+export type User = {
+  id: string
+  displayName: string
+  username?: string
+  email?: string
+  isGuest: boolean
+  avatar: AvatarKind
+  color: string
+}
+
+export type AuthSession = {
+  accessToken: string
+  refreshToken?: string
+  user: User
+}
+
+export type RoomStatus = 'waiting' | 'playing' | 'closed'
+
+export type RoomPlayer = {
+  id: string
+  displayName: string
+  avatar: AvatarKind
+  color: string
+  isHost: boolean
+  joined: boolean
+}
+
+export type Room = {
+  id: string
+  passcode: string
+  hostId: string
+  winsToFinish: number
+  turnSeconds: number
+  status: RoomStatus
+  players: RoomPlayer[]
+}
+
+export type MatchStatus = 'playing' | 'finished'
+
+export type ResolvedRound = {
+  number: number
+  moves: Record<string, Move>
+  winnerId: string | null
+  draw: boolean
+  pickTimeYouSec?: number
+}
+
+export type PlayerView = {
+  roomId: string
+  matchId: string
+  status: MatchStatus
+  roundNumber: number
+  winsNeeded: number
+  turnSeconds: number
+  remainingSeconds: number | null
+  scores: Record<string, number>
+  yourMove: Move | ''
+  yourReady: boolean
+  opponentId: string
+  opponentName: string
+  opponentAvatar: AvatarKind
+  opponentColor: string
+  opponentReady: boolean
+  opponentDisconnected: boolean
+  reconnectSeconds: number | null
+  winnerId: string | null
+  finished: boolean
+  history: ResolvedRound[]
+  you: User
+}
+
+export type RoundResultView = {
+  roundNumber: number
+  winsNeeded: number
+  yourMove: Move
+  opponentMove: Move
+  youWon: boolean
+  draw: boolean
+  scores: Record<string, number>
+  nextRoundIn: number
+  matchOver: boolean
+}
+
+export type UserStats = {
+  matchesPlayed: number
+  wins: number
+  losses: number
+  winRate: number
+  bestStreak: number
+  picks: Record<PlayableMove, number>
+  pickWins: Record<PlayableMove, number>
+}
+
+export type HistoryItem = {
+  id: string
+  opponentName: string
+  opponentAvatar: AvatarKind
+  opponentColor: string
+  youScore: number
+  opponentScore: number
+  won: boolean
+  playedAt: string
+  winsToFinish: number
+  turnSeconds: number
+}
+
+export type HistoryPage = {
+  items: HistoryItem[]
+  total: number
+  nextCursor?: string
+}
+
+export type MatchDetail = HistoryItem & {
+  rounds: Array<{
+    number: number
+    you: Move
+    opponent: Move
+    result: 'won' | 'lost' | 'draw'
+    pickTimeSec: number
+  }>
+}
+
+export type ApiErrorCode =
+  | 'UNAUTHORIZED'
+  | 'NOT_FOUND'
+  | 'ROOM_FULL'
+  | 'WRONG_PASSCODE'
+  | 'VALIDATION'
+  | 'CONFLICT'
+
+export type ApiError = {
+  code: ApiErrorCode
+  message: string
+  passcode?: string
+}
+
+export type WsEvent =
+  | { type: 'room.updated'; room: Room }
+  | { type: 'match.started'; view: PlayerView }
+  | { type: 'tick'; remainingSeconds: number }
+  | { type: 'view'; view: PlayerView }
+  | { type: 'round.resolved'; result: RoundResultView; view: PlayerView }
+  | { type: 'match.finished'; view: PlayerView }
+  | { type: 'opponent.disconnected'; view: PlayerView }
+  | { type: 'opponent.reconnected'; view: PlayerView }
+  | { type: 'connection.lost' }
+  | { type: 'connection.restored' }
+  | { type: 'play_again.waiting'; ready: number; need: number }
+
+export type WsClientEvent =
+  | { type: 'submit'; move: PlayableMove }
+  | { type: 'ready' }
+  | { type: 'claim_win' }
+  | { type: 'play_again' }
+  | { type: 'leave' }
+  | { type: 'simulate'; kind: 'opponent_dc' | 'connection_lost' | 'connection_restore' }
+
+export type WsConnection = {
+  send: (event: WsClientEvent) => void
+  close: () => void
+}

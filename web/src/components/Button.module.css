@@ -1,0 +1,91 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.08s ease, filter 0.12s ease, background 0.12s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.block {
+  width: 100%;
+}
+
+.primary {
+  background: #5b5fe6;
+  color: #fff;
+}
+
+.primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.secondary {
+  background: #fff;
+  color: #111b3d;
+  border-color: #d9dce2;
+}
+
+.secondary:hover:not(:disabled) {
+  background: #f5f6fa;
+}
+
+.ghost {
+  background: #eef0fc;
+  color: #3b4fd0;
+  border-color: transparent;
+}
+
+.danger {
+  background: #fff;
+  color: #dc2626;
+  border-color: #d9dce2;
+}
+
+.dangerText {
+  background: transparent;
+  color: #dc2626;
+  border: none;
+  min-height: auto;
+  padding: 8px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.disabled,
+.btn:disabled {
+  background: #c7c9f5;
+  color: #fff;
+  border-color: transparent;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.secondary:disabled,
+.secondary.disabled {
+  background: #f3f4f6;
+  color: #a0a6b1;
+  border-color: #e3e5ea;
+}
+
+.sm {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 16px;
+  border-radius: 10px;
+}
