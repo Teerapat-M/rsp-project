@@ -4,7 +4,7 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Logo } from '../components/Logo'
 import { HeaderWave } from '../components/Wave'
-import { IconEye, IconGoogle, IconLock, IconUser } from '../components/Icons'
+import { IconEye, IconGmail, IconLock, IconUser } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 
 export function LoginPage() {
@@ -81,7 +81,7 @@ export function LoginPage() {
               nav('/lobby')
             }}
           >
-            <IconGoogle /> Continue with Gmail
+            <IconGmail /> Continue with Gmail
           </Button>
           <Button variant="secondary" block to="/guest">
             <IconUser /> Continue as Guest

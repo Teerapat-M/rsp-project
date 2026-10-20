@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28.125 28.125" fill="none">
+  <g width="28.125" height="28.125" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <ellipse cy="14.0625" stroke-linejoin="round" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none;" ry="11.71875" fill="none" stroke-linecap="round" rx="11.71875" cx="14.0625" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <ellipse cx="14.0625" cy="14.0625" rx="11.71875" ry="11.71875" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M14.0625,7.03125L14.0625,14.0625L18.75,16.40625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M14.0625,7.03125L14.0625,14.0625L18.75,16.40625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

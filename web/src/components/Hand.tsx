@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { svgAsset } from '../assets/svg'
 import type { Move, PlayableMove } from '../types'
 
 const FILL: Record<PlayableMove, string> = {
@@ -7,33 +8,42 @@ const FILL: Record<PlayableMove, string> = {
   paper: '#93BFE3',
 }
 
-const SRC: Record<PlayableMove, string> = {
-  rock: '/hands/rock.png',
-  scissors: '/hands/scissors.png',
-  paper: '/hands/paper.png',
+export type HandTone = 'color' | 'white' | 'gray' | 'slate'
+
+const ART: Record<PlayableMove, Record<HandTone, string>> = {
+  rock: {
+    color: 'card-art-rock-sage',
+    white: 'card-art-rock-white',
+    gray: 'card-art-rock-gray',
+    slate: 'card-art-rock-gray', // no slate export; gray is the closest unselected fill
+  },
+  scissors: {
+    color: 'card-art-scissors-lavender',
+    white: 'card-art-scissors-white',
+    gray: 'card-art-scissors-gray',
+    slate: 'card-art-scissors-slate',
+  },
+  paper: {
+    color: 'card-art-paper-blue',
+    white: 'card-art-paper-white',
+    gray: 'card-art-paper-gray',
+    slate: 'card-art-paper-slate',
+  },
 }
 
 type Props = {
   move: PlayableMove | 'hidden'
-  color?: string
+  tone?: HandTone
   size?: number
   title?: string
 }
 
-function imgFilter(color?: string): string | undefined {
-  if (!color) return undefined
-  const c = color.toLowerCase()
-  if (c === '#fff' || c === '#ffffff' || c === 'white') return 'brightness(0) invert(1)'
-  if (c === '#a0a6b1' || c === '#4a5263' || c === '#c9cdd4') return 'grayscale(1) opacity(0.55)'
-  return undefined
-}
-
-export function Hand({ move, color, size = 48, title }: Props) {
-  const style: CSSProperties = { width: size, height: size, display: 'block', objectFit: 'contain' }
+export function Hand({ move, tone = 'color', size = 48, title }: Props) {
+  const style: CSSProperties = { width: size, height: size }
   if (move === 'hidden') {
     return (
-      <svg viewBox="0 0 64 64" style={style}>
-        <rect x="10" y="8" width="44" height="48" rx="10" fill={color ?? '#5B5FE6'} />
+      <svg viewBox="0 0 64 64" style={{ ...style, display: 'block' }}>
+        <rect x="10" y="8" width="44" height="48" rx="10" fill="#5B5FE6" />
         <text x="32" y="40" textAnchor="middle" fontSize="28" fontWeight="800" fill="#fff" fontFamily="Inter Tight, sans-serif">
           ?
         </text>
@@ -41,13 +51,12 @@ export function Hand({ move, color, size = 48, title }: Props) {
     )
   }
   return (
-    <img
-      src={SRC[move]}
-      alt={title ?? move}
-      width={size}
-      height={size}
-      style={{ ...style, filter: imgFilter(color) }}
-      draggable={false}
+    <span
+      className="svgIcon"
+      role="img"
+      aria-label={title ?? move}
+      style={style}
+      dangerouslySetInnerHTML={{ __html: svgAsset(ART[move][tone]) }}
     />
   )
 }

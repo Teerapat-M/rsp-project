@@ -38,10 +38,9 @@ export function Card({
   ]
     .filter(Boolean)
     .join(' ')
-  const iconColor = state === 'disabled' ? '#A0A6B1' : undefined
   return (
     <div className={cls} style={style} {...attributes} {...listeners}>
-      <Hand move={move} color={iconColor} size={size ?? (mini ? 36 : 52)} />
+      <Hand move={move} tone={state === 'disabled' ? 'gray' : 'color'} size={size ?? (mini ? 36 : 52)} />
       <span className={styles.label}>{moveLabel(move)}</span>
     </div>
   )

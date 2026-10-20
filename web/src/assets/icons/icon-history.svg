@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.688 19.688" fill="none">
+  <g width="19.688" height="19.688" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <path d="M2.4609375,9.84375C2.4609375,13.921142578125,5.76611328125,17.2265625,9.84375,17.2265625C13.92138671875,17.2265625,17.2265625,13.921142578125,17.2265625,9.84375C17.2265625,5.766357421875,13.92138671875,2.4609375,9.84375,2.4609375C7.77978515625,2.46868896484375,5.798828125,3.2740478515625,4.31494140625,4.7086181640625L2.4609375,6.5625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M2.4609375,9.84375C2.4609375,13.921142578125,5.76611328125,17.2265625,9.84375,17.2265625C13.92138671875,17.2265625,17.2265625,13.921142578125,17.2265625,9.84375C17.2265625,5.766357421875,13.92138671875,2.4609375,9.84375,2.4609375C7.77978515625,2.46868896484375,5.798828125,3.2740478515625,4.31494140625,4.7086181640625L2.4609375,6.5625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M2.4609375,2.4609375L2.4609375,6.5625L6.5625,6.5625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M2.4609375,2.4609375L2.4609375,6.5625L6.5625,6.5625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M9.84375,5.7421875L9.84375,9.84375L13.125,11.484375" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M9.84375,5.7421875L9.84375,9.84375L13.125,11.484375" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

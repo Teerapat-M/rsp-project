@@ -19,7 +19,7 @@ import { Card, FaceDown } from '../components/Card'
 import { HAND_ORDER, Hand, moveLabel } from '../components/Hand'
 import { Modal } from '../components/Modal'
 import { Timer } from '../components/Timer'
-import { IconCheck, IconLockSmall, IconWifiOff } from '../components/Icons'
+import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import type { PlayableMove } from '../types'
@@ -115,7 +115,9 @@ function PlaySurface({ demo }: { demo: string | null }) {
                 <IconCheck /> Opponent is ready
               </span>
             ) : (
-              <span className="statusChip statusWait">⌛ Opponent is choosing…</span>
+              <span className="statusChip statusWait">
+                <IconHourglass /> Opponent is choosing…
+              </span>
             )}
           </div>
 
@@ -174,7 +176,11 @@ function PlaySurface({ demo }: { demo: string | null }) {
         icon={<IconWifiOff />}
         title="Connection lost"
         body="You're offline. Your match is paused and we'll keep trying to reconnect for 30 seconds."
-        status={`Reconnecting… attempt ${game.reconnectAttempt} of 5 • 0:21`}
+        status={
+          <>
+            <IconRefresh /> Reconnecting… attempt {game.reconnectAttempt} of 5 • 0:21
+          </>
+        }
         primaryLabel="Retry now"
         secondaryLabel="Leave match"
         onPrimary={() => game.retryConnection()}
@@ -243,14 +249,16 @@ function DropSlot({
           <Card move={placed} mini state={locked ? 'normal' : 'selected'} />
           <div>
             <h3>
-              {locked ? <IconLockSmall color="#16A34A" /> : null} {title}
+              {locked ? <IconLock size={14} color="#16A34A" /> : null} {title}
             </h3>
             <p>{sub}</p>
           </div>
         </>
       ) : (
         <div>
-          <h3>{title}</h3>
+          <h3>
+            {timeup ? <IconClock size={16} color="#DC2626" /> : dc ? <IconWifiOff size={16} /> : null} {title}
+          </h3>
           <p>{sub}</p>
         </div>
       )}
@@ -332,7 +340,9 @@ function RoundResult() {
     <AppShell header={false}>
       <ScoreBar />
       <div className="pageCenter">
-        <div className={bannerCls}>{roundResult.youWon ? '🏆 ' : ''}{title}</div>
+        <div className={bannerCls}>
+          {roundResult.youWon ? <IconTrophy size={22} color="#F2B01E" /> : null} {title}
+        </div>
         <div className="vsRow">
           <div className={`vsPick ${roundResult.youWon ? 'win' : ''}`}>
             <span>You</span>

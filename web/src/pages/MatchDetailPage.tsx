@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Button } from '../components/Button'
 import { Hand, moveLabel } from '../components/Hand'
+import { IconArrowLeft } from '../components/Icons'
 import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
@@ -24,8 +25,8 @@ export function MatchDetailPage() {
   return (
     <AppShell>
       <div className="pageCenter">
-        <Link to="/history" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
-          ← Match History
+        <Link to="/history" style={{ alignSelf: 'flex-start', marginBottom: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconArrowLeft size={16} /> Match History
         </Link>
         <h1 className="heroTitle">
           {user.displayName} vs {m.opponentName}

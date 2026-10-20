@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.063 14.063" fill="none">
+  <g width="14.063" height="14.063" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <path d="M2.9296875,12.890625L11.1328125,12.890625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M2.9296875,12.890625L11.1328125,12.890625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M2.9296875,1.171875L11.1328125,1.171875" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M2.9296875,1.171875L11.1328125,1.171875" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M9.9609375,12.890625L9.9609375,10.446044921875C9.9609375,10.1353759765625,9.8369140625,9.8372802734375,9.6171875,9.6175537109375L7.03125,7.03125L4.4453125,9.6175537109375C4.2255859375,9.8372802734375,4.1015625,10.1353759765625,4.1015625,10.446044921875L4.1015625,12.890625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M9.9609375,12.890625L9.9609375,10.446044921875C9.9609375,10.1353759765625,9.8369140625,9.8372802734375,9.6171875,9.6175537109375L7.03125,7.03125L4.4453125,9.6175537109375C4.2255859375,9.8372802734375,4.1015625,10.1353759765625,4.1015625,10.446044921875L4.1015625,12.890625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M4.1015625,1.171875L4.1015625,3.616455078125C4.1015625,3.9271240234375,4.2255859375,4.2252197265625,4.4453125,4.4449462890625L7.03125,7.03125L9.6171875,4.4449462890625C9.8369140625,4.2252197265625,9.9609375,3.9271240234375,9.9609375,3.616455078125L9.9609375,1.171875" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M4.1015625,1.171875L4.1015625,3.616455078125C4.1015625,3.9271240234375,4.2255859375,4.2252197265625,4.4453125,4.4449462890625L7.03125,7.03125L9.6171875,4.4449462890625C9.8369140625,4.2252197265625,9.9609375,3.9271240234375,9.9609375,3.616455078125L9.9609375,1.171875" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

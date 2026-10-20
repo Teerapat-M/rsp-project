@@ -4,7 +4,7 @@ import { AppShell } from '../components/AppShell'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
-import { IconHistory, IconKey, IconPlayers, IconStats, IconWarn } from '../components/Icons'
+import { IconAlert, IconHistory, IconKey, IconStats, IconUserX } from '../components/Icons'
 import { useGame } from '../context/GameContext'
 import { formatPasscode, onlyDigits } from '../lib/format'
 
@@ -59,7 +59,7 @@ export function LobbyPage() {
       <Modal
         open={joinError?.code === 'WRONG_PASSCODE'}
         tone="danger"
-        icon={<IconWarn />}
+        icon={<IconAlert />}
         title="Wrong passcode"
         body={`We couldn't find a room with passcode ${formatPasscode(joinError?.passcode ?? '')}. Check the code with your friend and try again.`}
         primaryLabel="Try again"
@@ -74,7 +74,7 @@ export function LobbyPage() {
       <Modal
         open={joinError?.code === 'ROOM_FULL'}
         tone="warn"
-        icon={<IconPlayers />}
+        icon={<IconUserX />}
         title="Room is full"
         body={`Room ${formatPasscode(joinError?.passcode ?? '')} already has 2 players. Ask your friend for a new code or create your own room.`}
         primaryLabel="Create a room"

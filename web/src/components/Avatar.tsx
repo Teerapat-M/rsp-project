@@ -20,7 +20,7 @@ export function Avatar({ kind, color, size = 40, ring }: Props) {
         boxShadow: ring ? `0 0 0 3px #fff, 0 0 0 5px #16a34a` : undefined,
       }}
     >
-      <Hand move={kind} color="#fff" size={size - pad} />
+      <Hand move={kind} tone="white" size={size - pad} />
     </div>
   )
 }

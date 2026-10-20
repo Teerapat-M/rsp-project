@@ -3,6 +3,7 @@ import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Hand, HAND_FILL } from '../components/Hand'
+import { IconCircleX, IconFlame, IconPercent, IconTrophy } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../api'
 import type { UserStats } from '../types'
@@ -35,19 +36,27 @@ export function StatsPage() {
         </p>
         <div className="statsGrid">
           <div className="panel statCard">
-            <span>🏆 Wins</span>
+            <span>
+              <IconTrophy size={16} color="#F2B01E" /> Wins
+            </span>
             <strong className="statWin">{stats.wins}</strong>
           </div>
           <div className="panel statCard">
-            <span>✕ Losses</span>
+            <span>
+              <IconCircleX size={16} color="#DC2626" /> Losses
+            </span>
             <strong className="statLose">{stats.losses}</strong>
           </div>
           <div className="panel statCard">
-            <span>% Win rate</span>
+            <span>
+              <IconPercent size={16} color="#5B5FE6" /> Win rate
+            </span>
             <strong className="statRate">{stats.winRate}%</strong>
           </div>
           <div className="panel statCard">
-            <span>🔥 Best streak</span>
+            <span>
+              <IconFlame size={16} color="#F3B57A" /> Best streak
+            </span>
             <strong className="statStreak">{stats.bestStreak}</strong>
           </div>
         </div>

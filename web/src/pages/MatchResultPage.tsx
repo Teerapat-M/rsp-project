@@ -34,7 +34,7 @@ export function MatchResultPage() {
         <div className="resultPage">
           <div className="winnerCol">
             <Avatar kind={user.avatar} color={user.color} size={88} ring={won} />
-            <h1 className="heroTitle" style={{ marginTop: 12 }}>
+            <h1 className="heroTitle" style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               {won ? 'You Win!' : 'You Lose'} {won ? <IconTrophy color="#F2B01E" /> : null}
             </h1>
             <div style={{ color: '#5f6675' }}>{user.displayName}</div>

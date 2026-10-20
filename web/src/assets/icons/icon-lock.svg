@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" fill="none">
+  <g width="30" height="30" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <rect width="22.5" height="13.75" x="3.75" stroke-linejoin="round" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none;" ry="2" fill="none" stroke-linecap="round" rx="2" y="13.75" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <rect rx="2" ry="2" x="3.75" y="13.75" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" width="22.5" height="13.75" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M8.75,13.75L8.75,8.75C8.75,5.29833984375,11.5482177734375,2.5,15,2.5C18.4517822265625,2.5,21.25,5.29833984375,21.25,8.75L21.25,13.75" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M8.75,13.75L8.75,8.75C8.75,5.29833984375,11.5482177734375,2.5,15,2.5C18.4517822265625,2.5,21.25,5.29833984375,21.25,8.75L21.25,13.75" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

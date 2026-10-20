@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16.875 16.875" fill="none">
+  <g width="16.875" height="16.875" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <path d="M11.25,11.953125L14.765625,8.4375L11.25,4.921875" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M11.25,11.953125L14.765625,8.4375L11.25,4.921875" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M14.765625,8.4375L6.328125,8.4375" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M14.765625,8.4375L6.328125,8.4375" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M6.328125,14.765625L3.515625,14.765625C2.7392578125,14.765625,2.109375,14.13604736328125,2.109375,13.359375L2.109375,3.515625C2.109375,2.73895263671875,2.7392578125,2.109375,3.515625,2.109375L6.328125,2.109375" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M6.328125,14.765625L3.515625,14.765625C2.7392578125,14.765625,2.109375,14.13604736328125,2.109375,13.359375L2.109375,3.515625C2.109375,2.73895263671875,2.7392578125,2.109375,3.515625,2.109375L6.328125,2.109375" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

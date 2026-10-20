@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { TURN_PRESETS } from '../theme'
 import { AppShell } from '../components/AppShell'
 import { Button } from '../components/Button'
+import { IconMinus, IconPlus } from '../components/Icons'
 import { useGame } from '../context/GameContext'
 
 export function CreateRoomPage() {
@@ -24,11 +25,11 @@ export function CreateRoomPage() {
             </div>
             <div className="stepper">
               <button type="button" onClick={() => setWins((n) => Math.max(1, n - 1))} aria-label="Decrease">
-                −
+                <IconMinus size={18} />
               </button>
               <strong>{wins}</strong>
               <button type="button" onClick={() => setWins((n) => Math.min(9, n + 1))} aria-label="Increase">
-                +
+                <IconPlus size={18} />
               </button>
             </div>
           </div>

@@ -102,13 +102,33 @@ a {
   display: flex;
 }
 
-.logoMark {
-  background: #f8f4f1;
-  display: flex;
+.svgIcon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  box-shadow: 0 10px 24px rgba(17, 27, 61, 0.08);
+  flex-shrink: 0;
+  line-height: 0;
+  color: inherit;
+}
+
+.svgIcon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.logoSvg {
+  display: block;
+  line-height: 0;
+  flex-shrink: 0;
+}
+
+.logoSvg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
 }
 
 .logoStacked {
@@ -130,9 +150,16 @@ a {
 }
 
 .logoMini {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 2px;
+  height: 36px;
+  line-height: 0;
+}
+
+.logoMini svg {
+  height: 100%;
+  width: auto;
+  display: block;
 }
 
 .avatar {
@@ -266,12 +293,8 @@ a {
 }
 
 .authLogoFloat {
-  margin-top: 88px;
+  margin-top: 56px;
   margin-bottom: 4px;
-  background: #fff;
-  border-radius: 50%;
-  padding: 12px;
-  box-shadow: 0 10px 24px rgba(17, 27, 61, 0.1);
 }
 
 .mutedLink {
@@ -391,6 +414,9 @@ a {
   background: #fff;
   font-size: 20px;
   cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #111b3d;
 }
 
 .stepper strong {
@@ -625,6 +651,10 @@ a {
   color: var(--primary);
   font-size: 18px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .drop p {

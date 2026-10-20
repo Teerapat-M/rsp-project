@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button } from './Button'
+import { IconX } from './Icons'
 import styles from './Modal.module.css'
 
 type Tone = 'danger' | 'warn' | 'info'
@@ -43,7 +44,7 @@ export function Modal({
       >
         {onClose ? (
           <button className={styles.close} type="button" onClick={onClose} aria-label="Close">
-            ×
+            <IconX size={18} />
           </button>
         ) : null}
         {icon ? <div className={`${styles.icon} ${styles[tone]}`}>{icon}</div> : null}

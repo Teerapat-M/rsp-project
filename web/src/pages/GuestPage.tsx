@@ -64,7 +64,7 @@ export function GuestPage() {
                     className={`pickBtn ${avatar === m ? 'on' : ''}`}
                     onClick={() => setAvatar(m)}
                   >
-                    <Hand move={m} color="#4A5263" size={28} />
+                    <Hand move={m} tone={avatar === m ? 'color' : 'slate'} size={28} />
                   </button>
                 ))}
               </div>

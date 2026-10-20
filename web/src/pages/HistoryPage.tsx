@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
+import { IconChevronRight } from '../components/Icons'
 import { api } from '../api'
 import type { HistoryItem } from '../types'
 
@@ -41,7 +42,7 @@ export function HistoryPage() {
               <span className={`badge ${m.won ? 'badgeOk' : ''}`} style={m.won ? undefined : { background: '#fde8e8', color: '#dc2626' }}>
                 {m.won ? 'Win' : 'Loss'}
               </span>
-              <span style={{ color: '#8a909c' }}>›</span>
+              <IconChevronRight color="#8a909c" />
             </Link>
           ))}
         </div>

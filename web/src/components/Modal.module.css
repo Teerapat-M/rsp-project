@@ -25,10 +25,11 @@
   right: 16px;
   border: none;
   background: none;
-  font-size: 22px;
   color: #8a909c;
   cursor: pointer;
   line-height: 1;
+  display: flex;
+  padding: 4px;
 }
 
 .icon {
@@ -76,6 +77,10 @@
   font-weight: 600;
   color: #5b5fe6;
   margin: 8px 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .actions {

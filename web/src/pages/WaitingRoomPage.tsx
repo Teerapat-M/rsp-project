@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
-import { IconCheck, IconClock, IconCopy, IconLeave, IconPlayers } from '../components/Icons'
+import { IconCheck, IconClock, IconCopy, IconLogout, IconUsers } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import { formatPasscode } from '../lib/format'
@@ -58,7 +58,7 @@ export function WaitingRoomPage() {
           </div>
           <div className="panel">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-              <IconPlayers /> Players ({room.players.length}/2)
+              <IconUsers /> Players ({room.players.length}/2)
             </div>
             {room.players.map((p) => (
               <div className="playerRow" key={p.id}>
@@ -88,7 +88,7 @@ export function WaitingRoomPage() {
                 nav('/lobby')
               }}
             >
-              <IconLeave color="#DC2626" /> Leave room
+              <IconLogout color="#DC2626" /> Leave room
             </Button>
           </div>
         </div>
