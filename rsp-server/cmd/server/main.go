@@ -14,15 +14,19 @@ import (
 
 	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/hub"
+	"github.com/Teerapat-M/rsp-project/internal/redact"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/Teerapat-M/rsp-project/internal/server"
 	"github.com/Teerapat-M/rsp-project/internal/sqlcdb"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
+	log.SetOutput(redact.Writer(os.Stderr))
+	gin.DefaultWriter = redact.Writer(os.Stdout)
+	gin.DefaultErrorWriter = redact.Writer(os.Stderr)
+
 	addr := listenAddr(os.Getenv("HTTP_ADDR"), os.Getenv("PORT"))
 	appEnv := getenv("APP_ENV", "dev")
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -30,7 +34,7 @@ func main() {
 	corsCSV := os.Getenv("CORS_ORIGINS")
 	dsnEnv := os.Getenv("DATABASE_URL")
 	if err := validateBoot(appEnv, jwtSecret, emailProvider, corsCSV, dsnEnv); err != nil {
-		log.Fatal(err)
+		log.Fatal(redact.Error(err))
 	}
 
 	dsn := dsnEnv
@@ -55,14 +59,11 @@ func main() {
 
 	origins := server.ParseOrigins(corsCSV)
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := connectPostgres(ctx, dsn)
 	if err != nil {
-		log.Fatalf("postgres: %v", err)
+		log.Fatal(err)
 	}
 	defer pool.Close()
-	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("postgres ping: %v", err)
-	}
 
 	store := rooms.NewPostgres(sqlcdb.New(pool))
 	h := hub.New(store, hub.Config{
@@ -131,13 +132,13 @@ func main() {
 	select {
 	case err := <-errCh:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal(err)
+			log.Fatal(redact.Error(err))
 		}
 	case <-sig:
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("shutdown: %v", err)
+			log.Printf("shutdown: %s", redact.Error(err))
 		}
 	}
 }
