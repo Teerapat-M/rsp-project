@@ -346,19 +346,19 @@ function ScoreBar() {
 
 function RoundResult() {
   const { user } = useAuth()
-  const { roundResult, view } = useGame()
+  const { roundResult, view, nextRoundLeft } = useGame()
   if (!user || !roundResult || !view) return null
-  return <RoundResultBody key={roundResult.roundNumber} roundResult={roundResult} />
+  return <RoundResultBody key={roundResult.roundNumber} roundResult={roundResult} nextRoundLeft={nextRoundLeft} />
 }
 
-function RoundResultBody({ roundResult }: { roundResult: RoundResultView }) {
-  const [left, setLeft] = useState(roundResult.nextRoundIn)
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setLeft((n) => Math.max(0, n - 1))
-    }, 1000)
-    return () => window.clearInterval(id)
-  }, [roundResult.roundNumber])
+function RoundResultBody({
+  roundResult,
+  nextRoundLeft,
+}: {
+  roundResult: RoundResultView
+  nextRoundLeft: number | null
+}) {
+  const left = nextRoundLeft ?? roundResult.nextRoundIn
   const title = roundResult.draw ? "It's a draw" : roundResult.youWon ? 'You win this round!' : 'You lose this round'
   const bannerCls = roundResult.draw ? 'banner bannerDraw' : roundResult.youWon ? 'banner' : 'banner bannerLose'
   const hint = roundResult.matchOver ? 'Heading to the result…' : `Next round in ${left}...`

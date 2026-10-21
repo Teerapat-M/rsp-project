@@ -127,6 +127,22 @@ func viewOf(msg map[string]any) map[string]any {
 	return v
 }
 
+func parseNextRoundAt(t *testing.T, result map[string]any) time.Time {
+	t.Helper()
+	raw, _ := result["nextRoundAt"].(string)
+	if raw == "" {
+		t.Fatalf("missing nextRoundAt in %+v", result)
+	}
+	at, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		at, err = time.Parse(time.RFC3339, raw)
+	}
+	if err != nil {
+		t.Fatalf("nextRoundAt %q: %v", raw, err)
+	}
+	return at
+}
+
 func TestStartRequiresHostAndTwoPlayers(t *testing.T) {
 	t.Parallel()
 	clk := &fakeClock{}
@@ -576,8 +592,18 @@ func TestRoundStartedAfterResultPause(t *testing.T) {
 	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "ready"})
 
 	aliceMsgs := drain(aliceC)
-	if lastType(aliceMsgs, "round.resolved") == nil {
+	resolved := lastType(aliceMsgs, "round.resolved")
+	if resolved == nil {
 		t.Fatalf("want round.resolved, got %+v", aliceMsgs)
+	}
+	body, _ := resolved["result"].(map[string]any)
+	at := parseNextRoundAt(t, body)
+	if eventAt, _ := resolved["nextRoundAt"].(string); eventAt == "" {
+		t.Fatal("round.resolved missing nextRoundAt")
+	}
+	remain := time.Until(at)
+	if remain < 2*time.Second || remain > 4*time.Second {
+		t.Fatalf("nextRoundAt remaining %v want ~3s (%s)", remain, at.Format(time.RFC3339Nano))
 	}
 	if lastType(aliceMsgs, "round.started") != nil {
 		t.Fatal("round.started must wait for the result pause")
