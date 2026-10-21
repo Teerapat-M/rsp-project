@@ -11,7 +11,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
@@ -23,6 +23,7 @@ import { Timer } from '../components/Timer'
 import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
+import { playPath, readActiveRoom, resolvePlayRoom } from '../lib/playRoom'
 import { opponentInRoom, youInRoom } from '../lib/profile'
 import { RECONNECT_MAX_ATTEMPTS, formatGrace } from '../lib/reconnect'
 import type { PlayableMove, RoundResultView } from '../types'
@@ -34,16 +35,29 @@ export function GamePage() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const roomQ = params.get('room')
+  const roomId = resolvePlayRoom({
+    query: roomQ,
+    stored: readActiveRoom(),
+    live: game.room?.id ?? null,
+  })
 
   useEffect(() => {
-    if (roomQ) attach(roomQ)
-  }, [roomQ, attach])
+    if (!roomId) return
+    if (roomQ !== roomId) {
+      nav(playPath(roomId), { replace: true })
+      return
+    }
+    if (!(game.view && game.room?.id === roomQ)) {
+      attach(roomQ)
+    }
+  }, [roomId, roomQ, attach, nav, game.view, game.room?.id])
 
   useEffect(() => {
     if (game.view?.finished && !game.roundResult) nav('/result')
   }, [game.view, game.roundResult, nav])
 
   if (!user) return null
+  if (!roomId) return <Navigate to="/lobby" replace />
   if (game.roundResult) return <RoundResult />
   if (!game.view && !game.room) {
     return (

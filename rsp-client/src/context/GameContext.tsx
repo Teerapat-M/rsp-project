@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api'
 import { secondsUntil, watchNextRound } from '../lib/nextRound'
+import { writeActiveRoom } from '../lib/playRoom'
 import { RECONNECT_GRACE_SEC, RECONNECT_MAX_ATTEMPTS, reconnectDelayMs } from '../lib/reconnect'
 import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } from '../types'
 
@@ -54,6 +55,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const attach = useCallback((id: string) => {
     conn.current?.close()
     roomId.current = id
+    writeActiveRoom(id)
     conn.current = api.connectMatch(id, {
       onEvent: (ev) => {
         if (ev.type === 'room.updated') {
@@ -198,7 +200,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       clearJoinError: () => setJoinError(null),
       leaveRoom: async () => {
-        if (roomId.current) await api.leaveRoom(roomId.current)
+        const id = roomId.current
+        roomId.current = null
+        writeActiveRoom(null)
+        if (id) await api.leaveRoom(id)
         conn.current?.close()
         setRoom(null)
         setView(null)

@@ -8,6 +8,7 @@ import { IconCheck, IconClock, IconCopy, IconLogout, IconUsers } from '../compon
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import { formatPasscode } from '../lib/format'
+import { playPath } from '../lib/playRoom'
 import { seatedAvatar, seatedColor } from '../lib/profile'
 
 export function WaitingRoomPage() {
@@ -30,7 +31,7 @@ export function WaitingRoomPage() {
   }, [id])
 
   useEffect(() => {
-    if (view && !view.finished) nav('/play')
+    if (view && !view.finished) nav(playPath(view.roomId), { replace: true })
   }, [view, nav])
 
   if (error) {
