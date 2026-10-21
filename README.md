@@ -2,7 +2,7 @@
 
 Online Rock-Paper-Scissors. Backend is Go in [`rsp-server/`](rsp-server/); the React client lives in [`rsp-client/`](rsp-client/).
 
-**You are here: phase 3** — rooms, WebSocket presence, and live match play (countdown, hidden moves, resolve, persist). Real auth is phase 4. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
+**You are here: phase 4** — JWT auth (guest, password, Google, remember-me, reset) on top of rooms and live match play. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
 
 ## Prerequisites
 
@@ -41,16 +41,16 @@ make run
 # GET http://localhost:8080/health
 ```
 
-Identity is **temporary** until phase 4. Send `X-Player-ID: alice` (any string; UUIDs are kept, other values hash to a stable UUID) or mint a guest:
+Auth is JWT. Register / login / guest / Google mint `{ accessToken, refreshToken, user }`. Send `Authorization: Bearer <access>` on REST and `?token=<access>` on the WebSocket.
 
 ```bash
-curl -s http://localhost:8080/dev/guest \
+curl -s http://localhost:8080/auth/guest \
   -H 'Content-Type: application/json' \
-  -d '{"displayName":"Alice"}'
-# { "accessToken": "<uuid>", "user": { ... } }
+  -d '{"displayName":"Alice","avatar":"rock","color":"#9DB89A"}'
+# { "accessToken": "<jwt>", "refreshToken": "<opaque>", "user": { ... } }
 ```
 
-Use that UUID as `Authorization: Bearer` or as `?token=` on the WebSocket.
+In **dev** (`APP_ENV=dev`, the default), `POST /dev/guest` is an alias and `X-Player-ID: alice` still works for curl. Production requires `JWT_SECRET` and ignores those shortcuts.
 
 ### Try two players
 
@@ -101,7 +101,7 @@ The server hides each move until both are Ready or `turnSeconds` elapses. Anyone
 
 Disconnect mid-match pauses the clock (grace, default 20s). Come back in time and play continues; otherwise it is a forfeit. After `match.finished`, send `{"type":"play_again"}` (both players) for a rematch, or `leave` to return to the lobby.
 
-The React app in `rsp-client/` already speaks this REST + WS shape. It still defaults to its mock (`VITE_USE_MOCK` not `false`). To point it at Go: mint a guest via `/dev/guest`, store `accessToken` / `user` the way the mock login does, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`). Auth is still temporary until phase 4.
+The React app in `rsp-client/` already speaks this REST + WS shape. It still defaults to its mock (`VITE_USE_MOCK` not `false`). Phase 5 wires the real client; until then you can mint a guest via `/auth/guest`, store `accessToken` / `user`, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`).
 
 ## Tests
 

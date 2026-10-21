@@ -178,3 +178,12 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] Persist `rounds` + `round_moves`; update `user_stats` when the match ends
 - [x] Mid-match disconnect: grace, pause, then forfeit; `claim_win` if the opponent is already gone; rematch via `play_again` or leave to lobby
 - [x] `docs/ws-protocol.md` lists match events; table-driven hub tests plus a two-player WS round; `make test` / `make test-race`
+
+## Phase 4 acceptance
+
+- [x] JWT access tokens + hashed refresh tokens with rotation; Remember me uses a longer refresh TTL
+- [x] Guest login; username/password register + login (bcrypt); guest upgrade keeps `users.id`
+- [x] Forgot/reset password via `password_reset_tokens`; email-sender interface (dev logs the link; Resend/SMTP by env)
+- [x] Google sign-in verifies ID tokens with `GOOGLE_CLIENT_ID` (skipped cleanly when unset)
+- [x] REST and WS middleware; `/dev/guest` and `X-Player-ID` only when `APP_ENV=dev`
+- [x] `.env.example` lists JWT, Google, and email settings; tests cover rotation, upgrade, reset, and the Google skip

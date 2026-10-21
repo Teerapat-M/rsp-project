@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/hub"
 	"github.com/Teerapat-M/rsp-project/internal/ident"
 	"github.com/Teerapat-M/rsp-project/internal/passcode"
@@ -38,8 +39,18 @@ func writeErr(c *gin.Context, err error, passcode string) {
 
 func classify(err error) (int, string, string) {
 	switch {
-	case errors.Is(err, ident.ErrNoPlayer):
-		return http.StatusUnauthorized, "UNAUTHORIZED", "missing player identity"
+	case errors.Is(err, ident.ErrNoPlayer), errors.Is(err, auth.ErrUnauthorized):
+		return http.StatusUnauthorized, "UNAUTHORIZED", "missing or invalid credentials"
+	case errors.Is(err, auth.ErrUsernameTaken), errors.Is(err, auth.ErrEmailTaken), errors.Is(err, rooms.ErrUsernameTaken), errors.Is(err, rooms.ErrEmailTaken):
+		return http.StatusConflict, "CONFLICT", err.Error()
+	case errors.Is(err, auth.ErrValidation), errors.Is(err, auth.ErrNotGuest), errors.Is(err, rooms.ErrNotGuest):
+		return http.StatusBadRequest, "VALIDATION", err.Error()
+	case errors.Is(err, auth.ErrGoogleDisabled):
+		return http.StatusServiceUnavailable, "NOT_IMPLEMENTED", "Google sign-in is not configured (set GOOGLE_CLIENT_ID)"
+	case errors.Is(err, auth.ErrGoogleToken):
+		return http.StatusUnauthorized, "UNAUTHORIZED", "invalid Google token"
+	case errors.Is(err, auth.ErrResetInvalid):
+		return http.StatusBadRequest, "VALIDATION", err.Error()
 	case errors.Is(err, rooms.ErrWrongPasscode):
 		return http.StatusNotFound, "WRONG_PASSCODE", "We couldn't find a room with that passcode."
 	case errors.Is(err, rooms.ErrRoomFull):

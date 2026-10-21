@@ -2,7 +2,7 @@
 
 React + Vite + TypeScript UI for the online Rock-Paper-Scissors game. Drag-and-drop uses `@dnd-kit`; routing is `react-router`. Layouts follow the Penpot boards (desktop 1440×810 and mobile 390×844).
 
-Phase 3 of the Go server implements create/join/leave rooms, waiting-room WebSocket, and live match play (countdown, hidden moves, resolve). The client still ships a **typed API + WebSocket contract** (`src/api`) and a **mock implementation** (on by default) so every screen is clickable end to end. Point `VITE_USE_MOCK=false` at the Go process for live rooms and matches; auth is still temporary until phase 4 (`/dev/guest` or `X-Player-ID`).
+Phase 4 of the Go server adds JWT auth (guest, password, Google, remember-me, reset) on top of rooms and live match play. The client still ships a **typed API + WebSocket contract** (`src/api`) and a **mock implementation** (on by default). Point `VITE_USE_MOCK=false` at the Go process for live rooms; phase 5 wires the remaining client auth/stats flows.
 
 ## Run
 

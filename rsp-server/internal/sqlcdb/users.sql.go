@@ -12,7 +12,7 @@ import (
 )
 
 const getUser = `-- name: GetUser :one
-SELECT id, display_name, email, is_guest, created_at, username, password_hash FROM users WHERE id = $1
+SELECT id, display_name, email, is_guest, created_at, username, password_hash, avatar, color FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -26,13 +26,15 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.Username,
 		&i.PasswordHash,
+		&i.Avatar,
+		&i.Color,
 	)
 	return i, err
 }
 
 const insertGuest = `-- name: InsertGuest :one
-INSERT INTO users (id, display_name, is_guest)
-VALUES ($1, $2, true)
+INSERT INTO users (id, display_name, is_guest, avatar, color)
+VALUES ($1, $2, true, $3, $4)
 ON CONFLICT (id) DO UPDATE
 SET display_name = CASE
     WHEN users.is_guest
@@ -40,18 +42,21 @@ SET display_name = CASE
          AND EXCLUDED.display_name <> 'Guest'
     THEN EXCLUDED.display_name
     ELSE users.display_name
-END
-RETURNING id, display_name, email, is_guest, created_at, username, password_hash
+END,
+    avatar = CASE WHEN users.is_guest AND EXCLUDED.avatar <> '' THEN EXCLUDED.avatar ELSE users.avatar END,
+    color = CASE WHEN users.is_guest AND EXCLUDED.color <> '' THEN EXCLUDED.color ELSE users.color END
+RETURNING id, display_name, email, is_guest, created_at, username, password_hash, avatar, color
 `
 
 type InsertGuestParams struct {
 	ID          uuid.UUID `json:"id"`
 	DisplayName string    `json:"display_name"`
+	Avatar      string    `json:"avatar"`
+	Color       string    `json:"color"`
 }
 
-// Temporary guest upsert used until phase 4 JWT auth.
 func (q *Queries) InsertGuest(ctx context.Context, arg InsertGuestParams) (User, error) {
-	row := q.db.QueryRow(ctx, insertGuest, arg.ID, arg.DisplayName)
+	row := q.db.QueryRow(ctx, insertGuest, arg.ID, arg.DisplayName, arg.Avatar, arg.Color)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -61,6 +66,8 @@ func (q *Queries) InsertGuest(ctx context.Context, arg InsertGuestParams) (User,
 		&i.CreatedAt,
 		&i.Username,
 		&i.PasswordHash,
+		&i.Avatar,
+		&i.Color,
 	)
 	return i, err
 }

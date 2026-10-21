@@ -10,20 +10,34 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/hub"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func init() {
 	gin.SetMode(gin.TestMode)
 }
 
+func testAuth(st *rooms.Memory) *auth.Service {
+	return auth.New(st, auth.Config{
+		Secret:          []byte("test-secret-at-least-32-bytes-long!!"),
+		AppEnv:          "dev",
+		BcryptCost:      bcrypt.MinCost,
+		AccessTTL:       time.Hour,
+		RefreshTTL:      24 * time.Hour,
+		RefreshRemember: 72 * time.Hour,
+	})
+}
+
 func newTestAPI(t *testing.T) *httptest.Server {
 	t.Helper()
-	h := hub.New(rooms.NewMemory(), hub.Config{Grace: 200 * time.Millisecond})
-	return httptest.NewServer(New(h).Router())
+	st := rooms.NewMemory()
+	h := hub.New(st, hub.Config{Grace: 200 * time.Millisecond})
+	return httptest.NewServer(New(h, testAuth(st)).Router())
 }
 
 func doJSON(t *testing.T, ts *httptest.Server, method, path, player string, body any) *http.Response {
@@ -357,7 +371,7 @@ func TestHealth(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body["phase"] != float64(3) {
+	if body["phase"] != float64(4) {
 		t.Fatalf("%v", body)
 	}
 }

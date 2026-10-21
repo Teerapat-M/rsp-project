@@ -170,6 +170,8 @@ type User struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	Username     *string            `json:"username"`
 	PasswordHash *string            `json:"password_hash"`
+	Avatar       string             `json:"avatar"`
+	Color        string             `json:"color"`
 }
 
 type UserStat struct {

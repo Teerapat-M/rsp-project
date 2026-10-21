@@ -25,6 +25,9 @@ var (
 	ErrInvalidWins   = errors.New("wins_to_finish must be >= 1")
 	ErrInvalidTurn   = errors.New("turn_seconds must be >= 1")
 	ErrClosed        = errors.New("room is closed")
+	ErrUsernameTaken = errors.New("username is taken")
+	ErrEmailTaken    = errors.New("email is taken")
+	ErrNotGuest      = errors.New("account is not a guest")
 )
 
 type Status string
