@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, isMock } from '../api'
+import { api } from '../api'
 import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } from '../types'
 
 type JoinError = { code: 'WRONG_PASSCODE' | 'ROOM_FULL'; passcode: string; message: string } | null
@@ -24,7 +24,6 @@ type GameCtx = {
   readyUp: () => void
   claimWin: () => void
   playAgain: () => void
-  simulate: (kind: 'opponent_dc' | 'connection_lost' | 'connection_restore') => void
   retryConnection: () => void
 }
 
@@ -80,17 +79,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => () => conn.current?.close(), [])
-
-  useEffect(() => {
-    const onSim = (ev: Event) => {
-      const kind = (ev as CustomEvent<string>).detail
-      if (kind === 'opponent_dc' || kind === 'connection_lost' || kind === 'connection_restore') {
-        conn.current?.send({ type: 'simulate', kind })
-      }
-    }
-    window.addEventListener('rsp-simulate', onSim)
-    return () => window.removeEventListener('rsp-simulate', onSim)
-  }, [])
 
   const value = useMemo<GameCtx>(
     () => ({
@@ -150,15 +138,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       readyUp: () => conn.current?.send({ type: 'ready' }),
       claimWin: () => conn.current?.send({ type: 'claim_win' }),
       playAgain: () => conn.current?.send({ type: 'play_again' }),
-      simulate: (kind) => conn.current?.send({ type: 'simulate', kind }),
       retryConnection: () => {
         setReconnectAttempt((n) => n + 1)
         setConnectionLost(false)
-        if (isMock()) {
-          conn.current?.send({ type: 'simulate', kind: 'connection_restore' })
-        } else if (roomId.current) {
-          attach(roomId.current)
-        }
+        if (roomId.current) attach(roomId.current)
       },
     }),
     [room, view, remaining, roundResult, connectionLost, reconnectAttempt, playAgainReady, joinError, attach],

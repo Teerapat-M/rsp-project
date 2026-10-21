@@ -60,7 +60,6 @@ Disconnect grace (default 20s, `DISCONNECT_GRACE`):
 | `submit` | `{ "move": "rock"\|"paper"\|"scissors" }` | Store a hidden playable move. Allowed until Ready. Changing the card replaces the previous one. |
 | `claim_win` | `{}` | If the opponent is disconnected mid-match, forfeit them immediately (same as grace expiry). |
 | `play_again` | `{}` | After `match.finished`. When both have sent it, a new match starts in the same room. |
-| `simulate` | — | Still `error` `NOT_IMPLEMENTED` (mock-only on the React client). |
 
 Ready without a card → `error` `VALIDATION` (`ready requires a submitted move`). After Ready the move is locked.
 

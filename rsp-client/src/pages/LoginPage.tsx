@@ -8,8 +8,7 @@ import { IconEye, IconGmail, IconLock, IconUser } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
-const mockMode = import.meta.env.VITE_USE_MOCK !== 'false'
-const showGoogle = mockMode || Boolean(googleClientId)
+const showGoogle = Boolean(googleClientId)
 
 function loadGis(): Promise<void> {
   if (window.google?.accounts?.id) return Promise.resolve()
@@ -105,11 +104,6 @@ export function LoginPage() {
                 setBusy(true)
                 setError('')
                 try {
-                  if (mockMode && !googleClientId) {
-                    await google('mock')
-                    nav('/lobby')
-                    return
-                  }
                   await loadGis()
                   const idToken = await new Promise<string>((resolve, reject) => {
                     if (!window.google?.accounts?.id) {

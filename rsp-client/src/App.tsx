@@ -15,7 +15,6 @@ import { MatchResultPage } from './pages/MatchResultPage'
 import { StatsPage } from './pages/StatsPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { MatchDetailPage } from './pages/MatchDetailPage'
-import { DemoPage } from './pages/DemoPage'
 import type { ReactNode } from 'react'
 
 function Gate({ children }: { children: ReactNode }) {
@@ -98,14 +97,6 @@ export default function App() {
               element={
                 <Gate>
                   <MatchDetailPage />
-                </Gate>
-              }
-            />
-            <Route
-              path="/demo"
-              element={
-                <Gate>
-                  <DemoPage />
                 </Gate>
               }
             />

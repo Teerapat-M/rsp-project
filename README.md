@@ -101,7 +101,7 @@ The server hides each move until both are Ready or `turnSeconds` elapses. Anyone
 
 Disconnect mid-match pauses the clock (grace, default 20s). Come back in time and play continues; otherwise it is a forfeit. After `match.finished`, send `{"type":"play_again"}` (both players) for a rematch, or `leave` to return to the lobby.
 
-The React app in `rsp-client/` already speaks this REST + WS shape. It still defaults to its mock (`VITE_USE_MOCK` not `false`). Phase 5 wires the real client; until then you can mint a guest via `/auth/guest`, store `accessToken` / `user`, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`).
+The React app in `rsp-client/` speaks this REST + WS shape. Vite proxies `/api` and `/ws` to `:8080` (it strips the `/api` prefix).
 
 ## Tests
 
@@ -128,12 +128,11 @@ Run these from `rsp-server/`.
 
 ## Frontend (React)
 
-The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). Mock mode is still the default so every screen is clickable without a backend. Point it at Go:
+The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). It always talks to the Go server:
 
 ```bash
 cd rsp-client
 cp .env.example .env
-# VITE_USE_MOCK=false
 # VITE_GOOGLE_CLIENT_ID=   # optional; hides Gmail unless set
 npm install
 npm run dev      # http://localhost:5173 — Vite proxies /api and /ws to :8080

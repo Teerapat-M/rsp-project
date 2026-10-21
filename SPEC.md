@@ -128,7 +128,7 @@ rsp-server/internal/sqlcdb sqlc output
 rsp-server/db/migrations  golang-migrate
 rsp-server/db/queries     sqlc input
 docs/ws-protocol.md       WebSocket message types
-rsp-client/               React app (mock API; HTTP client already matches this phase)
+rsp-client/               React app (Vite proxies /api and /ws to the Go server)
 ```
 
 ---
@@ -191,7 +191,7 @@ Each phase is one PR. Do not fold later phases into this one.
 ## Phase 5 acceptance
 
 - [x] `GET /stats`, `GET /matches?cursor=`, `GET /matches/:id` (wins/losses/draws, win rate, streak, rounds + moves)
-- [x] `rsp-client` talks to the Go API when `VITE_USE_MOCK=false`; mock and `/demo` still work
+- [x] `rsp-client` talks to the Go API (Vite proxies `/api` and `/ws`)
 - [x] Auth, Google button (behind `VITE_GOOGLE_CLIENT_ID`), lobby, create/join (WRONG_PASSCODE / ROOM_FULL), waiting room, board + Ready over WS, results, reconnect, stats, history
 - [x] Vite proxies `/api` and `/ws` to the Go server
 - [x] `make smoke` plays a first-to-1 match with two clients against the live server + Postgres

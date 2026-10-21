@@ -1,9 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api } from '../api'
-import { selfCheck } from '../game/rules'
 import type { AvatarKind, User } from '../types'
-
-if (import.meta.env.DEV) selfCheck()
 
 type AuthCtx = {
   user: User | null

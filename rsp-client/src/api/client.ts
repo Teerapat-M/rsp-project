@@ -39,9 +39,4 @@ export type ApiClient = {
   getHistory: (cursor?: string) => Promise<HistoryPage>
   getMatch: (id: string) => Promise<MatchDetail>
   connectMatch: (roomId: string, handlers: WsHandlers) => WsConnection
-  applyDemo?: (id: string) => Promise<string>
-}
-
-export function isMock(): boolean {
-  return import.meta.env.VITE_USE_MOCK !== 'false'
 }
