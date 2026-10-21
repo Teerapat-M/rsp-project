@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -43,6 +44,9 @@ type Config struct {
 	// Pick replaces crypto/rand when a turn times out with no card. Tests
 	// inject a stub so auto-picks are deterministic.
 	Pick game.Pick
+	// CheckOrigin is gorilla's WS origin check. Nil allows every origin
+	// (tests / local curl). Production passes the CORS allowlist.
+	CheckOrigin func(*http.Request) bool
 }
 
 type Hub struct {
@@ -53,6 +57,7 @@ type Hub struct {
 	onPlay      PlayHandler
 	onStart     StartHandler
 	pick        game.Pick
+	checkOrigin func(*http.Request) bool
 
 	mu     sync.Mutex
 	rooms  map[string]*session
@@ -83,8 +88,12 @@ func New(store rooms.Store, cfg Config) *Hub {
 		onPlay:      cfg.OnPlay,
 		onStart:     cfg.OnStart,
 		pick:        cfg.Pick,
+		checkOrigin: cfg.CheckOrigin,
 		rooms:       make(map[string]*session),
 		byCode:      make(map[string]*session),
+	}
+	if h.checkOrigin == nil {
+		h.checkOrigin = func(*http.Request) bool { return true }
 	}
 	if h.onPlay == nil {
 		h.onPlay = h.handlePlay

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -411,8 +412,101 @@ func TestHealth(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body["phase"] != float64(5) {
+	if body["phase"] != float64(6) {
 		t.Fatalf("%v", body)
+	}
+}
+
+func TestReadyOKAndFail(t *testing.T) {
+	st := rooms.NewMemory()
+	h := hub.New(st, hub.Config{Grace: time.Second})
+	s := New(h, testAuth(st))
+	ts := httptest.NewServer(s.Router())
+	defer ts.Close()
+
+	res, err := http.Get(ts.URL + "/ready")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("nil ping should be ready, got %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+
+	s.Ping = func(context.Context) error { return io.ErrUnexpectedEOF }
+	ts2 := httptest.NewServer(s.Router())
+	defer ts2.Close()
+	res, err = http.Get(ts2.URL + "/ready")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("want 503, got %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+}
+
+func TestCORSAllowlist(t *testing.T) {
+	st := rooms.NewMemory()
+	h := hub.New(st, hub.Config{Grace: time.Second})
+	s := New(h, testAuth(st))
+	s.CORSOrigins = []string{"http://localhost:5173"}
+	ts := httptest.NewServer(s.Router())
+	defer ts.Close()
+
+	req, _ := http.NewRequest(http.MethodGet, ts.URL+"/health", nil)
+	req.Header.Set("Origin", "http://evil.example")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decode(t, res, nil)
+	if ao := res.Header.Get("Access-Control-Allow-Origin"); ao != "" {
+		t.Fatalf("evil origin allowed: %s", ao)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, ts.URL+"/health", nil)
+	req.Header.Set("Origin", "http://localhost:5173")
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decode(t, res, nil)
+	if res.Header.Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+		t.Fatalf("allowlist origin missing: %v", res.Header)
+	}
+}
+
+func TestAuthRateLimit(t *testing.T) {
+	st := rooms.NewMemory()
+	h := hub.New(st, hub.Config{Grace: time.Second})
+	s := New(h, testAuth(st))
+	s.AuthLimit = 2
+	ts := httptest.NewServer(s.Router())
+	defer ts.Close()
+
+	body := `{"username":"x","password":"y"}`
+	for i := 0; i < 2; i++ {
+		res, err := http.Post(ts.URL+"/auth/login", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode == http.StatusTooManyRequests {
+			t.Fatalf("hit 429 on request %d", i+1)
+		}
+		decode(t, res, nil)
+	}
+	res, err := http.Post(ts.URL+"/auth/login", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("want 429, got %d", res.StatusCode)
+	}
+	var errBody apiError
+	decode(t, res, &errBody)
+	if errBody.Code != "RATE_LIMIT" {
+		t.Fatalf("%+v", errBody)
 	}
 }
 

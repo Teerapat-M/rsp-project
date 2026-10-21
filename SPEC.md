@@ -142,7 +142,7 @@ rsp-client/               React app (Vite proxies /api and /ws to the Go server)
 | **3 — countdown / ready / resolve** | Server timer, submit + ready, hide moves, resolve, `wins_to_finish`, persist round/match rows | Auth, polished UI |
 | **4 — auth** | Guest JWT; username/password register + login; Remember me (refresh token); Forgot password (dev: log the link); bcrypt; guest upgrade to a password account; then Google OAuth | Stats page, drag-drop |
 | **5 — stats / history + React drag-drop** | `user_stats` + history API, React + Vite in `rsp-client`, dnd-kit cards → drop slot → Ready | Production hosting |
-| **6 — deploy** | Dockerfile, Compose or a small VM, env-based config, README for a stranger to run it | Extra game modes |
+| **6 — deploy** | Dockerfiles, prod Compose example, `/health` + `/ready`, env-based config, README for a stranger to run it | Extra game modes |
 
 Each phase is one PR. Do not fold later phases into this one.
 
@@ -195,3 +195,13 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] Auth, Google button (behind `VITE_GOOGLE_CLIENT_ID`), lobby, create/join (WRONG_PASSCODE / ROOM_FULL), waiting room, board + Ready over WS, results, reconnect, stats, history
 - [x] Vite proxies `/api` and `/ws` to the Go server
 - [x] `make smoke` plays a first-to-1 match with two clients against the live server + Postgres
+
+## Phase 6 acceptance
+
+- [x] `rsp-server/Dockerfile` and `rsp-client/Dockerfile` (nginx SPA proxies `/api` and `/ws`)
+- [x] `docker-compose.prod.yml` — Postgres + migrate + API + web; secrets from env only
+- [x] `GET /health` (liveness) and `GET /ready` (Postgres ping)
+- [x] Production refuses missing/`dev` `JWT_SECRET`, `EMAIL_PROVIDER=log`, empty `CORS_ORIGINS`, empty `DATABASE_URL`; `/dev/guest` stays off
+- [x] Auth POST rate limit, CORS/WS origin allowlist, DB password from env, `sslmode` documented
+- [x] Google sign-in does not auto-link an existing password email
+- [x] README deploy section lists every environment variable; `.env.example` has no real secrets

@@ -2,7 +2,7 @@
 
 Online Rock-Paper-Scissors. Backend is Go in [`rsp-server/`](rsp-server/); the React client lives in [`rsp-client/`](rsp-client/).
 
-**You are here: phase 5** — stats/history plus the React client talking to the real Go API. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
+**You are here: phase 6** — Docker images, a production Compose example, and env-based config. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ docker compose ps
 docker compose logs migrate
 ```
 
-Postgres from the host: `localhost:5433` (Compose maps `5433:5432` so a native Postgres on 5432 can stay). User/password/db `rsp` (see `.env.example`). Inside the Compose network, migrate talks to `db:5432`.
+Postgres from the host: `localhost:5433` (Compose maps `5433:5432` so a native Postgres on 5432 can stay). User/password/db come from `POSTGRES_*` in `.env` (local default `rsp` — see `.env.example`). Inside the Compose network, migrate talks to `db:5432`. The DSN uses `sslmode=disable` for this private Compose network; use `sslmode=require` (or `verify-full`) if the database is reached over the internet.
 
 Stop and wipe the volume:
 
@@ -50,7 +50,7 @@ curl -s http://localhost:8080/auth/guest \
 # { "accessToken": "<jwt>", "refreshToken": "<opaque>", "user": { ... } }
 ```
 
-In **dev** (`APP_ENV=dev`, the default), `POST /dev/guest` is an alias and `X-Player-ID: alice` still works for curl. Production requires `JWT_SECRET` and ignores those shortcuts.
+In **dev** (`APP_ENV=dev`, the default), `POST /dev/guest` is an alias and `X-Player-ID: alice` still works for curl. Production requires `JWT_SECRET` (not the documented dev default), `DATABASE_URL`, `CORS_ORIGINS`, and a real mailer (`EMAIL_PROVIDER=resend` or `smtp` — `log` is refused). `/dev/guest` and `X-Player-ID` are ignored. `GET /health` is liveness; `GET /ready` pings Postgres.
 
 ### Try two players
 
@@ -147,6 +147,54 @@ make smoke
 ```
 
 Details: [rsp-client/README.md](rsp-client/README.md).
+
+## Deploy (phase 6)
+
+Images: [`rsp-server/Dockerfile`](rsp-server/Dockerfile) (Go API) and [`rsp-client/Dockerfile`](rsp-client/Dockerfile) (nginx SPA). The browser talks to nginx; `/api/` and `/ws` are proxied to the API. Postgres is not published to the host.
+
+```bash
+cp .env.example .env   # repo root — fill every required value
+docker compose -f docker-compose.prod.yml up --build
+# GET http://localhost/health  (via nginx → /api/health)
+```
+
+Compose interpolation refuses to start if `POSTGRES_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`, `PUBLIC_BASE_URL`, or `EMAIL_PROVIDER` is missing. The API process also refuses `APP_ENV=production` with a missing/dev `JWT_SECRET`, `EMAIL_PROVIDER=log`, empty `CORS_ORIGINS`, or empty `DATABASE_URL`.
+
+Liveness is `GET /health` (process up). Readiness is `GET /ready` (Postgres ping) — that is the Compose healthcheck.
+
+### Environment variables
+
+| Variable | Where | Notes |
+| --- | --- | --- |
+| `APP_ENV` | API | `dev` (default) or `production` |
+| `HTTP_ADDR` | API | Listen address, default `:8080` |
+| `DATABASE_URL` | API / `make migrate-up` | Required in production. Local default `postgres://rsp:rsp@localhost:5433/rsp?sslmode=disable` |
+| `POSTGRES_USER` | Compose | Default `rsp` |
+| `POSTGRES_PASSWORD` | Compose | Local default `rsp`. **Required in prod compose** (no default) |
+| `POSTGRES_DB` | Compose | Default `rsp` |
+| `POSTGRES_PORT` | Dev compose | Host port, default `5433` |
+| `POSTGRES_SSLMODE` | Prod compose | Default `disable` on the Compose network; use `require` / `verify-full` over the internet |
+| `JWT_SECRET` | API | Required in production; must not be the documented dev default |
+| `ACCESS_TOKEN_TTL` | API | Default `15m` |
+| `REFRESH_TOKEN_TTL` | API | Default `168h` |
+| `REFRESH_TOKEN_TTL_REMEMBER` | API | Default `720h` |
+| `PASSWORD_RESET_TTL` | API | Default `1h` |
+| `BCRYPT_COST` | API | Default `12` (raised to 10+ outside dev) |
+| `PUBLIC_BASE_URL` | API | Origin used in password-reset links. Required in prod compose |
+| `EMAIL_PROVIDER` | API | `log` (dev) / `resend` / `smtp`. `log` is forbidden in production |
+| `EMAIL_FROM` | API | Required by resend and smtp at send time |
+| `RESEND_API_KEY` | API | When `EMAIL_PROVIDER=resend` |
+| `SMTP_HOST` `SMTP_PORT` `SMTP_USER` `SMTP_PASSWORD` | API | When `EMAIL_PROVIDER=smtp` |
+| `GOOGLE_CLIENT_ID` | API | Unset disables `POST /auth/google` |
+| `CORS_ORIGINS` | API | Comma-separated browser origins. Required in production (REST + WebSocket) |
+| `RATE_LIMIT_AUTH_PER_MIN` | API | Unauthenticated auth POSTs per IP per minute (default 20) |
+| `DISCONNECT_GRACE` | API | Default `20s` |
+| `HTTP_PORT` | Prod compose | Host port for nginx, default `80` |
+| `VITE_API_BASE` | Client build | Default `/api` (nginx strips the prefix) |
+| `VITE_WS_URL` | Client | Blank uses the page host `/ws` |
+| `VITE_GOOGLE_CLIENT_ID` | Client build | Same value as `GOOGLE_CLIENT_ID`; baked into the image |
+
+Full lists: [`.env.example`](.env.example) (prod compose) and [`rsp-server/.env.example`](rsp-server/.env.example) (local `make run`). [`rsp-client/.env.example`](rsp-client/.env.example) is the Vite dev file. Never commit `.env`.
 
 ## Layout
 

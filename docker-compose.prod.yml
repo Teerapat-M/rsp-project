@@ -1,0 +1,91 @@
+# Production example. Copy .env.example to .env (repo root) and fill every
+# required value. No passwords or JWT secrets belong in this file.
+#
+#   docker compose -f docker-compose.prod.yml up --build
+#
+# Postgres is not published to the host. The browser talks to `web` on
+# HTTP_PORT (default 80); nginx proxies /api and /ws to the Go process.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rsp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-rsp}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  migrate:
+    image: migrate/migrate:v4.18.1
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./rsp-server/db/migrations:/migrations:ro
+    command:
+      [
+        "-verbose",
+        "-path=/migrations",
+        "-database=postgres://${POSTGRES_USER:-rsp}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-rsp}?sslmode=${POSTGRES_SSLMODE:-disable}",
+        "up",
+      ]
+    restart: on-failure
+
+  api:
+    build:
+      context: ./rsp-server
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: :8080
+      DATABASE_URL: postgres://${POSTGRES_USER:-rsp}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-rsp}?sslmode=${POSTGRES_SSLMODE:-disable}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS in .env}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?set PUBLIC_BASE_URL in .env}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:?set EMAIL_PROVIDER (resend or smtp) in .env}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      RATE_LIMIT_AUTH_PER_MIN: ${RATE_LIMIT_AUTH_PER_MIN:-20}
+      DISCONNECT_GRACE: ${DISCONNECT_GRACE:-20s}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
+      REFRESH_TOKEN_TTL: ${REFRESH_TOKEN_TTL:-168h}
+      REFRESH_TOKEN_TTL_REMEMBER: ${REFRESH_TOKEN_TTL_REMEMBER:-720h}
+      PASSWORD_RESET_TTL: ${PASSWORD_RESET_TTL:-1h}
+      BCRYPT_COST: ${BCRYPT_COST:-12}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./rsp-client
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_API_BASE: /api
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

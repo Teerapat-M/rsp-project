@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -18,8 +19,20 @@ import (
 
 func main() {
 	addr := getenv("HTTP_ADDR", ":8080")
-	dsn := getenv("DATABASE_URL", "postgres://rsp:rsp@localhost:5433/rsp?sslmode=disable")
 	appEnv := getenv("APP_ENV", "dev")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	emailProvider := getenv("EMAIL_PROVIDER", "log")
+	corsCSV := os.Getenv("CORS_ORIGINS")
+	dsnEnv := os.Getenv("DATABASE_URL")
+	if err := validateBoot(appEnv, jwtSecret, emailProvider, corsCSV, dsnEnv); err != nil {
+		log.Fatal(err)
+	}
+
+	dsn := dsnEnv
+	if dsn == "" {
+		dsn = "postgres://rsp:rsp@localhost:5433/rsp?sslmode=disable"
+	}
+
 	grace := 20 * time.Second
 	if v := os.Getenv("DISCONNECT_GRACE"); v != "" {
 		d, err := time.ParseDuration(v)
@@ -29,15 +42,13 @@ func main() {
 		grace = d
 	}
 
-	secret := []byte(os.Getenv("JWT_SECRET"))
+	secret := []byte(jwtSecret)
 	if len(secret) == 0 {
-		if appEnv == "production" || appEnv == "prod" {
-			log.Fatal("JWT_SECRET is required when APP_ENV=production")
-		}
 		log.Print("JWT_SECRET unset; using a dev-only default")
-		secret = []byte("dev-only-change-me-please-32b!!")
+		secret = []byte(auth.DevJWTSecret)
 	}
 
+	origins := server.ParseOrigins(corsCSV)
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
@@ -49,7 +60,12 @@ func main() {
 	}
 
 	store := rooms.NewPostgres(sqlcdb.New(pool))
-	h := hub.New(store, hub.Config{Grace: grace})
+	h := hub.New(store, hub.Config{
+		Grace: grace,
+		CheckOrigin: func(r *http.Request) bool {
+			return server.OriginAllowed(r.Header.Get("Origin"), origins)
+		},
+	})
 
 	var google auth.GoogleVerifier
 	if cid := os.Getenv("GOOGLE_CLIENT_ID"); cid != "" {
@@ -59,7 +75,7 @@ func main() {
 	}
 
 	mail := auth.SenderFromEnv(
-		getenv("EMAIL_PROVIDER", "log"),
+		emailProvider,
 		os.Getenv("RESEND_API_KEY"),
 		os.Getenv("EMAIL_FROM"),
 		os.Getenv("SMTP_HOST"),
@@ -85,9 +101,18 @@ func main() {
 		Mail:            mail,
 		Google:          google,
 	})
-	r := server.New(h, a).Router()
 
-	log.Printf("listening on %s (phase 5 stats, env=%s, grace=%s)", addr, appEnv, grace)
+	limit := getenvInt("RATE_LIMIT_AUTH_PER_MIN", 20)
+	if limit < 1 {
+		limit = 20
+	}
+	api := server.New(h, a)
+	api.CORSOrigins = origins
+	api.AuthLimit = limit
+	api.Ping = pool.Ping
+	r := api.Router()
+
+	log.Printf("listening on %s (phase 6 deploy, env=%s, grace=%s)", addr, appEnv, grace)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}

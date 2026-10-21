@@ -2,16 +2,16 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: rsp
-      POSTGRES_PASSWORD: rsp
-      POSTGRES_DB: rsp
+      POSTGRES_USER: ${POSTGRES_USER:-rsp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rsp}
+      POSTGRES_DB: ${POSTGRES_DB:-rsp}
     ports:
       # Host 5433 so a native Postgres on 5432 can coexist. Inside Compose this is still 5432.
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rsp -d rsp"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 2s
       timeout: 5s
       retries: 15
@@ -29,7 +29,7 @@ services:
       [
         "-verbose",
         "-path=/migrations",
-        "-database=postgres://rsp:rsp@db:5432/rsp?sslmode=disable",
+        "-database=postgres://${POSTGRES_USER:-rsp}:${POSTGRES_PASSWORD:-rsp}@db:5432/${POSTGRES_DB:-rsp}?sslmode=disable",
         "up",
       ]
     restart: on-failure

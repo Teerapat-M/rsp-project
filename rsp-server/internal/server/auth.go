@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/ident"
@@ -10,15 +11,16 @@ import (
 )
 
 func (s *Server) registerAuth(r *gin.Engine) {
-	r.POST("/auth/register", s.authRegister)
-	r.POST("/auth/login", s.authLogin)
-	r.POST("/auth/guest", s.authGuest)
-	r.POST("/auth/google", s.authGoogle)
-	r.POST("/auth/forgot", s.authForgot)
-	r.POST("/auth/reset", s.authReset)
-	r.POST("/auth/refresh", s.authRefresh)
+	limit := s.limitAuth()
+	r.POST("/auth/register", limit, s.authRegister)
+	r.POST("/auth/login", limit, s.authLogin)
+	r.POST("/auth/guest", limit, s.authGuest)
+	r.POST("/auth/google", limit, s.authGoogle)
+	r.POST("/auth/forgot", limit, s.authForgot)
+	r.POST("/auth/reset", limit, s.authReset)
+	r.POST("/auth/refresh", limit, s.authRefresh)
 	if s.Auth.Dev() {
-		r.POST("/dev/guest", s.devGuest)
+		r.POST("/dev/guest", limit, s.devGuest)
 	}
 
 	me := r.Group("/")
@@ -26,6 +28,17 @@ func (s *Server) registerAuth(r *gin.Engine) {
 	me.GET("/auth/me", s.authMe)
 	me.POST("/auth/logout", s.authLogout)
 	me.POST("/auth/upgrade", s.authUpgrade)
+}
+
+func (s *Server) limitAuth() gin.HandlerFunc {
+	l := newIPLimiter(s.AuthLimit, time.Minute)
+	return func(c *gin.Context) {
+		if !l.allow(c.ClientIP(), time.Now()) {
+			writeAPIError(c, http.StatusTooManyRequests, "RATE_LIMIT", "too many requests", nil)
+			return
+		}
+		c.Next()
+	}
 }
 
 func writeSession(c *gin.Context, status int, sess auth.Session) {
