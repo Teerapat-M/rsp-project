@@ -28,7 +28,7 @@ On connect the server sends `room.updated` (and `presence` if anyone else is wat
 | `match.started` | Host started, or both players chose Play Again | `{ "view": PlayerView }` — **per player** (hidden opponent move) |
 | `tick` | Once a second during a turn | `{ "remainingSeconds": n }` |
 | `view` | After submit / one-sided ready / reconnect | `{ "view": PlayerView }` |
-| `round.resolved` | Both Ready, or the turn timer fired | `{ "result": RoundResultView, "view": PlayerView }` — **per player** |
+| `round.resolved` | Both Ready, or the turn timer fired | `{ "result": RoundResultView, "view": PlayerView, "nextRoundAt": "<RFC3339>" }` — **per player** |
 | `round.started` | Result pause ended; next turn clock is live | `{ "view": PlayerView }` — **per player**. Clients leave the round-result overlay. |
 | `match.finished` | Someone reached `winsToFinish`, or a forfeit | `{ "view": PlayerView }` after the result pause |
 | `opponent.disconnected` | Opponent's last socket dropped **during a match** | `{ "view": PlayerView }` (`opponentDisconnected`, `reconnectSeconds`) |
@@ -72,7 +72,7 @@ The server owns the clock. Each round lasts `turnSeconds` (the room setting). `t
 - No move → the server picks rock, paper, or scissors at random (`yourAutoPicked` / `opponentAutoPicked` on `round.resolved`, `autoPicked` on history). The round then resolves with the usual cycle.
 - The timeout closure captures `roundNo`. A late timer from round N cannot resolve round N+1 (`ErrStaleRound`).
 
-After `round.resolved` there is a 3s pause (`nextRoundIn`) so the UI can show the result. Then the hub either broadcasts `round.started` (fresh `remainingSeconds`, turn clock running) or `match.finished`. Both players advance on that event so they stay in sync. Clients may also count down locally and dismiss the overlay if the event is late.
+After `round.resolved` there is a 3s pause so the UI can show the result. The event includes `nextRoundAt` (RFC3339, also on `result`) and `result.nextRoundIn` (whole seconds). Clients compute the visible “Next round in N…” from `nextRoundAt` so both players tick 3, 2, 1 together. Then the hub broadcasts `round.started` (fresh `remainingSeconds`, turn clock running) or `match.finished`. Clients leave the overlay on that event, or immediately when the deadline passes if the event is late.
 
 ## Persistence
 
