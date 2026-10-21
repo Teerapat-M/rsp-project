@@ -1,11 +1,15 @@
-.PHONY: test run up down migrate-up migrate-down tidy vet sqlc
+.PHONY: test test-race run up down migrate-up migrate-down tidy vet sqlc
 
 # Host-side migrate CLI, if installed: https://github.com/golang-migrate/migrate
-# Compose already runs the same files via the migrate service.
-DATABASE_URL ?= postgres://rsp:rsp@localhost:5432/rsp?sslmode=disable
+# Compose already runs the same files via the migrate service (db:5432).
+DATABASE_URL ?= postgres://rsp:rsp@localhost:5433/rsp?sslmode=disable
 MIGRATE_PATH := db/migrations
 
+# -race needs cgo. `make test` stays plain so Windows without gcc still works.
 test:
+	go test ./...
+
+test-race:
 	go test ./... -race
 
 sqlc:

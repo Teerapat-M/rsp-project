@@ -15,7 +15,7 @@ import (
 
 func main() {
 	addr := getenv("HTTP_ADDR", ":8080")
-	dsn := getenv("DATABASE_URL", "postgres://rsp:rsp@localhost:5432/rsp?sslmode=disable")
+	dsn := getenv("DATABASE_URL", "postgres://rsp:rsp@localhost:5433/rsp?sslmode=disable")
 	grace := 20 * time.Second
 	if v := os.Getenv("DISCONNECT_GRACE"); v != "" {
 		d, err := time.ParseDuration(v)

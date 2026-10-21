@@ -25,7 +25,7 @@ docker compose ps
 docker compose logs migrate
 ```
 
-Postgres: `localhost:5432`, user/password/db `rsp` (see `.env.example`).
+Postgres from the host: `localhost:5433` (Compose maps `5433:5432` so a native Postgres on 5432 can stay). User/password/db `rsp` (see `.env.example`). Inside the Compose network, migrate talks to `db:5432`.
 
 Stop and wipe the volume:
 
@@ -92,7 +92,8 @@ The React app in `rsp-client/` already speaks this REST shape (`/rooms`, `/rooms
 
 ```bash
 cd rsp-server
-make test          # go test ./... -race
+make test          # go test ./...  (no cgo)
+make test-race     # go test ./... -race  (needs cgo)
 ```
 
 No Docker required: join rules, passcode allocation, the hub, and the WS integration test use an in-memory store.
@@ -103,7 +104,8 @@ Run these from `rsp-server/`.
 
 | Target | What |
 | --- | --- |
-| `make test` | `go test ./... -race` |
+| `make test` | `go test ./...` |
+| `make test-race` | `go test ./... -race` (needs cgo) |
 | `make run` | `go run ./cmd/server` |
 | `make up` / `make down` | Compose up (detached) / down |
 | `make migrate-up` | Run migrations from the host (needs [`golang-migrate`](https://github.com/golang-migrate/migrate) CLI) |
