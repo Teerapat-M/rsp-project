@@ -106,6 +106,8 @@ PostgreSQL   (users, rooms, persisted results)
 
 Stack: Go 1.22+, gin, gorilla/websocket, PostgreSQL, sqlc, golang-migrate, Docker Compose.
 
+Compose publishes Postgres on **localhost:5433** (`5433:5432`) so a native Postgres on 5432 can coexist. Host tools (`DATABASE_URL`, `make migrate-up`, `cmd/server` default) use `localhost:5433`. Inside the Compose network the migrate service uses `db:5432`.
+
 **gorilla/websocket** rather than coder/websocket: more examples a junior can cite, same job at this scale.
 
 **sqlc** rather than an ORM: SQL stays visible (migrations + `db/queries`), generated Go is boring and typed.
@@ -165,4 +167,4 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] In-memory hub (mutex per room + map mutex), empty rooms closed and dropped so passcodes reuse
 - [x] Temporary identity: `X-Player-ID` or `Authorization: Bearer` / `POST /dev/guest` (not phase 4 JWT)
 - [x] Phase 3 hooks only: `POST /rooms/:id/start` and WS `submit`/`ready` (while playing) return `NOT_IMPLEMENTED`
-- [x] Unit tests: passcode, join rules, hub; WS integration via `httptest`; `go test ./... -race`
+- [x] Unit tests: passcode, join rules, hub; WS integration via `httptest`; `make test` (`make test-race` when cgo is available)

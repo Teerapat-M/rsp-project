@@ -1,12 +1,13 @@
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: rsp
       POSTGRES_PASSWORD: rsp
       POSTGRES_DB: rsp
     ports:
-      - "5432:5432"
+      # Host 5433 so a native Postgres on 5432 can coexist. Inside Compose this is still 5432.
+      - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,13 +16,12 @@ services:
       timeout: 5s
       retries: 15
 
-  # golang-migrate one-shot. Shares Postgres's network namespace so the DSN is
-  # localhost (sidecar, not a second routable service). Exit 0 = schema current.
+  # golang-migrate one-shot on the Compose network. Talks to db:5432 (container port),
+  # not the published host port. Exit 0 = schema current.
   migrate:
     image: migrate/migrate:v4.18.1
-    network_mode: service:postgres
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     volumes:
       - ./db/migrations:/migrations:ro
@@ -29,7 +29,7 @@ services:
       [
         "-verbose",
         "-path=/migrations",
-        "-database=postgres://rsp:rsp@127.0.0.1:5432/rsp?sslmode=disable",
+        "-database=postgres://rsp:rsp@db:5432/rsp?sslmode=disable",
         "up",
       ]
     restart: on-failure
