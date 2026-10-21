@@ -23,7 +23,7 @@ INNER JOIN room_players rp ON rp.room_id = m.room_id AND rp.user_id = $1
 WHERE m.id = $2 AND m.ended_at IS NOT NULL;
 
 -- name: ListMatchMoves :many
-SELECT rd.round_no, rd.winner_id, rm.user_id, rm.move
+SELECT rd.round_no, rd.winner_id, rm.user_id, rm.move, rm.auto_picked
 FROM rounds rd
 INNER JOIN round_moves rm ON rm.round_id = rd.id
 WHERE rd.match_id = $1

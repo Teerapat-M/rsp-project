@@ -88,7 +88,14 @@ func (m *Memory) MatchDetail(_ context.Context, userID, matchID string) (MatchDe
 		} else if rd.WinnerID != "" {
 			res = "lost"
 		}
-		rounds = append(rounds, HistoryRound{Number: rd.Number, You: you, Opponent: opp, Result: res})
+		rounds = append(rounds, HistoryRound{
+			Number:             rd.Number,
+			You:                you,
+			Opponent:           opp,
+			Result:             res,
+			YouAutoPicked:      rd.AutoPicked[userID],
+			OpponentAutoPicked: rd.AutoPicked[oppID],
+		})
 	}
 	return MatchDetail{HistoryItem: item, Rounds: rounds}, nil
 }

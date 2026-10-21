@@ -92,14 +92,15 @@ func (q *Queries) GetMatchForUser(ctx context.Context, arg GetMatchForUserParams
 }
 
 type ListMatchMovesRow struct {
-	RoundNo  int32      `json:"round_no"`
-	WinnerID *uuid.UUID `json:"winner_id"`
-	UserID   uuid.UUID  `json:"user_id"`
-	Move     MoveKind   `json:"move"`
+	RoundNo    int32      `json:"round_no"`
+	WinnerID   *uuid.UUID `json:"winner_id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Move       MoveKind   `json:"move"`
+	AutoPicked bool       `json:"auto_picked"`
 }
 
 const listMatchMoves = `-- name: ListMatchMoves :many
-SELECT rd.round_no, rd.winner_id, rm.user_id, rm.move
+SELECT rd.round_no, rd.winner_id, rm.user_id, rm.move, rm.auto_picked
 FROM rounds rd
 INNER JOIN round_moves rm ON rm.round_id = rd.id
 WHERE rd.match_id = $1
@@ -115,7 +116,7 @@ func (q *Queries) ListMatchMoves(ctx context.Context, matchID uuid.UUID) ([]List
 	var items []ListMatchMovesRow
 	for rows.Next() {
 		var i ListMatchMovesRow
-		if err := rows.Scan(&i.RoundNo, &i.WinnerID, &i.UserID, &i.Move); err != nil {
+		if err := rows.Scan(&i.RoundNo, &i.WinnerID, &i.UserID, &i.Move, &i.AutoPicked); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

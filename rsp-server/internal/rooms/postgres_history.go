@@ -116,6 +116,7 @@ func (p *Postgres) MatchDetail(ctx context.Context, userID, matchID string) (Mat
 	}
 	type pair struct {
 		you, opp, winner string
+		youAuto, oppAuto bool
 	}
 	byNo := map[int]pair{}
 	order := make([]int, 0)
@@ -132,8 +133,10 @@ func (p *Postgres) MatchDetail(ctx context.Context, userID, matchID string) (Mat
 		pr.winner = winner
 		if mv.UserID == uid {
 			pr.you = string(mv.Move)
+			pr.youAuto = mv.AutoPicked
 		} else {
 			pr.opp = string(mv.Move)
+			pr.oppAuto = mv.AutoPicked
 		}
 		byNo[n] = pr
 	}
@@ -146,7 +149,14 @@ func (p *Postgres) MatchDetail(ctx context.Context, userID, matchID string) (Mat
 		} else if pr.winner != "" {
 			res = "lost"
 		}
-		rounds = append(rounds, HistoryRound{Number: n, You: pr.you, Opponent: pr.opp, Result: res})
+		rounds = append(rounds, HistoryRound{
+			Number:             n,
+			You:                pr.you,
+			Opponent:           pr.opp,
+			Result:             res,
+			YouAutoPicked:      pr.youAuto,
+			OpponentAutoPicked: pr.oppAuto,
+		})
 	}
 	return MatchDetail{HistoryItem: item, Rounds: rounds}, nil
 }

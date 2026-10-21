@@ -1,5 +1,9 @@
-// Smoke drives two HTTP+WS clients through a first-to-1 match against a live
-// server + Postgres. Run the server first (`make run`), then `make smoke`.
+// Smoke drives two HTTP+WS clients through a live server + Postgres.
+// Run the server first (`make run`), then `make smoke`.
+//
+// Both sockets are opened before POST /rooms/:id/start. The hub only
+// broadcasts match.started to currently attached clients; a late socket
+// instead gets a snapshot (match.started if the match is already playing).
 package main
 
 import (
@@ -33,19 +37,19 @@ func main() {
 		log.Fatalf("health %d %s", health.StatusCode, body)
 	}
 
-	a := guest(base, "SmokeA")
-	b := guest(base, "SmokeB")
-	room := postJSON(base+"/rooms", a.Access, map[string]int{"winsToFinish": 1, "turnSeconds": 15})
-	_ = postJSON(base+"/rooms/join", b.Access, map[string]string{"passcode": str(room["passcode"])})
-	roomID := str(room["id"])
-	mustStatus(http.StatusNoContent, postRaw(base+"/rooms/"+roomID+"/start", a.Access, nil))
+	playSubmittedMatch(base, wsBase)
+	playTimeoutRound(base, wsBase)
+	fmt.Println("smoke ok: first-to-1 match, timeout auto-pick, stats, and history against", base)
+}
 
-	wa := dialWS(wsBase + "/ws?token=" + a.Access + "&room=" + roomID)
-	wb := dialWS(wsBase + "/ws?token=" + b.Access + "&room=" + roomID)
+func playSubmittedMatch(base, wsBase string) {
+	a, _, roomID, wa, wb := seatAndConnect(base, wsBase, 1, 15)
 	defer wa.Close()
 	defer wb.Close()
-	waitType(wa, "match.started")
-	waitType(wb, "match.started")
+
+	mustStatus(http.StatusNoContent, postRaw(base+"/rooms/"+roomID+"/start", a.Access, nil))
+	waitStarted(wa)
+	waitStarted(wb)
 
 	must(wa.WriteJSON(map[string]string{"type": "submit", "move": "rock"}))
 	must(wb.WriteJSON(map[string]string{"type": "submit", "move": "scissors"}))
@@ -72,7 +76,71 @@ func main() {
 	if len(rounds) < 1 {
 		log.Fatalf("match detail missing rounds: %v", detail)
 	}
-	fmt.Println("smoke ok: first-to-1 match, stats, and history against", base)
+}
+
+func playTimeoutRound(base, wsBase string) {
+	a, _, roomID, wa, wb := seatAndConnect(base, wsBase, 1, 1)
+	defer wa.Close()
+	defer wb.Close()
+
+	mustStatus(http.StatusNoContent, postRaw(base+"/rooms/"+roomID+"/start", a.Access, nil))
+	waitStarted(wa)
+	waitStarted(wb)
+
+	var last map[string]any
+	for i := 0; i < 8; i++ {
+		msg := waitType(wa, "round.resolved")
+		result, _ := msg["result"].(map[string]any)
+		if !playable(result["yourMove"]) || !playable(result["opponentMove"]) {
+			log.Fatalf("timeout round should auto-pick a throw, got %+v", result)
+		}
+		if result["yourAutoPicked"] != true || result["opponentAutoPicked"] != true {
+			log.Fatalf("timeout round auto flags %+v", result)
+		}
+		last = result
+		if result["matchOver"] == true {
+			break
+		}
+	}
+	if last["matchOver"] != true {
+		log.Fatalf("timeout match did not finish after auto-picks: %+v", last)
+	}
+	waitType(wa, "match.finished")
+
+	hist := getJSON(base+"/matches", a.Access)
+	items, _ := hist["items"].([]any)
+	if len(items) < 1 {
+		log.Fatalf("timeout history empty: %v", hist)
+	}
+	first, _ := items[0].(map[string]any)
+	detail := getJSON(base+"/matches/"+str(first["id"]), a.Access)
+	rounds, _ := detail["rounds"].([]any)
+	if len(rounds) < 1 {
+		log.Fatalf("timeout match detail missing rounds: %v", detail)
+	}
+	r0, _ := rounds[0].(map[string]any)
+	if !playable(r0["you"]) || !playable(r0["opponent"]) {
+		log.Fatalf("history timeout moves %+v", r0)
+	}
+	if r0["youAutoPicked"] != true || r0["opponentAutoPicked"] != true {
+		log.Fatalf("history auto flags %+v", r0)
+	}
+}
+
+func seatAndConnect(base, wsBase string, winsToFinish, turnSeconds int) (session, session, string, *websocket.Conn, *websocket.Conn) {
+	a := guest(base, "SmokeA")
+	b := guest(base, "SmokeB")
+	room := postJSON(base+"/rooms", a.Access, map[string]int{"winsToFinish": winsToFinish, "turnSeconds": turnSeconds})
+	_ = postJSON(base+"/rooms/join", b.Access, map[string]string{"passcode": str(room["passcode"])})
+	roomID := str(room["id"])
+
+	wa := dialWS(wsBase + "/ws?token=" + a.Access + "&room=" + roomID)
+	wb := dialWS(wsBase + "/ws?token=" + b.Access + "&room=" + roomID)
+	// Attach is complete once the connect snapshot arrives. Starting before
+	// that races the hub broadcast of match.started.
+	waitType(wa, "room.updated")
+	waitType(wb, "room.updated")
+	return a, b, roomID, wa, wb
 }
 
 type session struct {
@@ -91,11 +159,37 @@ func dialWS(url string) *websocket.Conn {
 	if err != nil {
 		log.Fatalf("ws %s: %v", url, err)
 	}
-	_ = c.SetReadDeadline(time.Now().Add(8 * time.Second))
 	return c
 }
 
+func waitStarted(c *websocket.Conn) map[string]any {
+	deadline := time.Now().Add(15 * time.Second)
+	_ = c.SetReadDeadline(deadline)
+	for {
+		var msg map[string]any
+		if err := c.ReadJSON(&msg); err != nil {
+			log.Fatalf("wait match.started: %v", err)
+		}
+		typ := str(msg["type"])
+		if typ == "match.started" {
+			return msg
+		}
+		// Late / reconnect snapshot used to be a plain view; accept a playing
+		// view so smoke still passes if the hub type ever regresses.
+		if typ == "view" {
+			view, _ := msg["view"].(map[string]any)
+			if str(view["status"]) == "playing" {
+				return msg
+			}
+		}
+		if time.Now().After(deadline) {
+			log.Fatalf("wait match.started: deadline")
+		}
+	}
+}
+
 func waitType(c *websocket.Conn, want string) map[string]any {
+	_ = c.SetReadDeadline(time.Now().Add(15 * time.Second))
 	for {
 		var msg map[string]any
 		if err := c.ReadJSON(&msg); err != nil {
@@ -105,6 +199,11 @@ func waitType(c *websocket.Conn, want string) map[string]any {
 			return msg
 		}
 	}
+}
+
+func playable(v any) bool {
+	s := str(v)
+	return s == "rock" || s == "paper" || s == "scissors"
 }
 
 func postJSON(url, token string, body any) map[string]any {

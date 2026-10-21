@@ -36,11 +36,13 @@ type HistoryPage struct {
 }
 
 type HistoryRound struct {
-	Number      int     `json:"number"`
-	You         string  `json:"you"`
-	Opponent    string  `json:"opponent"`
-	Result      string  `json:"result"`
-	PickTimeSec float64 `json:"pickTimeSec"`
+	Number             int     `json:"number"`
+	You                string  `json:"you"`
+	Opponent           string  `json:"opponent"`
+	Result             string  `json:"result"`
+	PickTimeSec        float64 `json:"pickTimeSec"`
+	YouAutoPicked      bool    `json:"youAutoPicked"`
+	OpponentAutoPicked bool    `json:"opponentAutoPicked"`
 }
 
 type MatchDetail struct {

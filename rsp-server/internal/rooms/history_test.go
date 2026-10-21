@@ -30,10 +30,16 @@ func TestMemoryHistoryAndStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := m.SaveRound(ctx, mid, 1, a.ID, map[string]string{a.ID: "rock", b.ID: "scissors"}); err != nil {
+	if err := m.SaveRound(ctx, mid, 1, a.ID, map[string]RoundMove{
+		a.ID: {Move: "rock"},
+		b.ID: {Move: "scissors"},
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := m.SaveRound(ctx, mid, 2, a.ID, map[string]string{a.ID: "paper", b.ID: "rock"}); err != nil {
+	if err := m.SaveRound(ctx, mid, 2, a.ID, map[string]RoundMove{
+		a.ID: {Move: "paper", AutoPicked: true},
+		b.ID: {Move: "rock"},
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.FinishMatch(ctx, mid, a.ID); err != nil {
@@ -65,6 +71,12 @@ func TestMemoryHistoryAndStats(t *testing.T) {
 	d, err := m.MatchDetail(ctx, a.ID, mid)
 	if err != nil || len(d.Rounds) != 2 || d.Rounds[0].Result != "won" || d.Rounds[0].You != "rock" {
 		t.Fatalf("detail %+v %v", d, err)
+	}
+	if d.Rounds[0].YouAutoPicked || d.Rounds[0].OpponentAutoPicked {
+		t.Fatalf("round 1 should be manual %+v", d.Rounds[0])
+	}
+	if !d.Rounds[1].YouAutoPicked || d.Rounds[1].OpponentAutoPicked {
+		t.Fatalf("round 2 auto flags %+v", d.Rounds[1])
 	}
 	if _, err := m.MatchDetail(ctx, "cccccccc-cccc-cccc-cccc-cccccccccccc", mid); err != ErrNotFound {
 		t.Fatalf("stranger: %v", err)
