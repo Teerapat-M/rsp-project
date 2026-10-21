@@ -12,6 +12,12 @@ export function relativeTime(_iso: string, label: string): string {
   return label
 }
 
+export function formatPlayedAt(value: string): string {
+  const ms = Date.parse(value)
+  if (Number.isNaN(ms)) return value
+  return new Date(ms).toLocaleString()
+}
+
 export function uid(prefix = 'id'): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
 }

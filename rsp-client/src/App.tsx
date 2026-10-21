@@ -5,6 +5,7 @@ import { SplashPage } from './pages/SplashPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ForgotPage } from './pages/ForgotPage'
+import { ResetPage } from './pages/ResetPage'
 import { GuestPage } from './pages/GuestPage'
 import { LobbyPage } from './pages/LobbyPage'
 import { CreateRoomPage } from './pages/CreateRoomPage'
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot" element={<ForgotPage />} />
+            <Route path="/reset" element={<ResetPage />} />
             <Route path="/guest" element={<GuestPage />} />
             <Route
               path="/lobby"

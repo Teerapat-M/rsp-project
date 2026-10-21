@@ -2,7 +2,7 @@
 
 React + Vite + TypeScript UI for the online Rock-Paper-Scissors game. Drag-and-drop uses `@dnd-kit`; routing is `react-router`. Layouts follow the Penpot boards (desktop 1440×810 and mobile 390×844).
 
-Phase 4 of the Go server adds JWT auth (guest, password, Google, remember-me, reset) on top of rooms and live match play. The client still ships a **typed API + WebSocket contract** (`src/api`) and a **mock implementation** (on by default). Point `VITE_USE_MOCK=false` at the Go process for live rooms; phase 5 wires the remaining client auth/stats flows.
+Phase 5 wires this client to the Go API when `VITE_USE_MOCK=false` (auth, lobby, waiting room, live match, reconnect, stats, history). Mock mode and `/demo` stay the default for offline clicking. Layouts still follow the Penpot boards.
 
 ## Run
 
@@ -26,10 +26,11 @@ Copy `.env.example` to `.env` if you want to change the toggle:
 ```
 VITE_USE_MOCK=true
 VITE_API_BASE=/api
-VITE_WS_URL=ws://localhost:8080/ws
+VITE_WS_URL=
+VITE_GOOGLE_CLIENT_ID=
 ```
 
-Set `VITE_USE_MOCK=false` later to hit the Go server. Vite proxies `/api` to `http://localhost:8080`.
+Set `VITE_USE_MOCK=false` to hit the Go server. Vite proxies `/api` and `/ws` to `http://localhost:8080`. Leave `VITE_WS_URL` blank so the browser uses the same host. Set `VITE_GOOGLE_CLIENT_ID` (same value as the server) to show Continue with Gmail against the real API.
 
 ## Mock shortcuts
 

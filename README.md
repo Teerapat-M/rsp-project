@@ -2,7 +2,7 @@
 
 Online Rock-Paper-Scissors. Backend is Go in [`rsp-server/`](rsp-server/); the React client lives in [`rsp-client/`](rsp-client/).
 
-**You are here: phase 4** — JWT auth (guest, password, Google, remember-me, reset) on top of rooms and live match play. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
+**You are here: phase 5** — stats/history plus the React client talking to the real Go API. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
 
 ## Prerequisites
 
@@ -128,13 +128,23 @@ Run these from `rsp-server/`.
 
 ## Frontend (React)
 
-The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). Mock mode is still the default so every screen is clickable without auth.
+The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). Mock mode is still the default so every screen is clickable without a backend. Point it at Go:
 
 ```bash
 cd rsp-client
+cp .env.example .env
+# VITE_USE_MOCK=false
+# VITE_GOOGLE_CLIENT_ID=   # optional; hides Gmail unless set
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5173 — Vite proxies /api and /ws to :8080
 npm run build
+```
+
+Two-player smoke against live Postgres (server already up):
+
+```bash
+cd rsp-server
+make smoke
 ```
 
 Details: [rsp-client/README.md](rsp-client/README.md).
@@ -144,7 +154,9 @@ Details: [rsp-client/README.md](rsp-client/README.md).
 ```
 rsp-server/cmd/server     main()
 rsp-server/internal/game  rules engine
-rsp-server/internal/ident temporary player identity
+rsp-server/internal/auth  JWT, refresh, Google, mail
+rsp-server/internal/ident player identity
+rsp-server/cmd/smoke      two-player e2e against live HTTP+WS
 rsp-server/internal/passcode  6-digit codes
 rsp-server/internal/rooms persistence + join rules
 rsp-server/internal/hub   live rooms + WS

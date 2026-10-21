@@ -5,6 +5,7 @@ import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { IconChevronRight } from '../components/Icons'
 import { api } from '../api'
+import { formatPlayedAt } from '../lib/format'
 import type { HistoryItem } from '../types'
 
 export function HistoryPage() {
@@ -34,7 +35,7 @@ export function HistoryPage() {
               <Avatar kind={m.opponentAvatar} color={m.opponentColor} size={40} />
               <div className="meta">
                 <strong>vs {m.opponentName}</strong>
-                <span>{m.playedAt}</span>
+                <span>{formatPlayedAt(m.playedAt)}</span>
               </div>
               <div className="historyScore">
                 {m.youScore} – {m.opponentScore}

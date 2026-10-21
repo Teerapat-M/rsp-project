@@ -134,6 +134,7 @@ type Store interface {
 	FinishMatch(ctx context.Context, matchID, winnerID string) error
 	SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error
 	ApplyMatchStats(ctx context.Context, userID string, won, lost bool, rock, paper, scissors int) error
+	HistoryStore
 }
 
 // RoundMove is one player's revealed throw for a persisted round.

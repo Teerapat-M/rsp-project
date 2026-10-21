@@ -187,3 +187,11 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] Google sign-in verifies ID tokens with `GOOGLE_CLIENT_ID` (skipped cleanly when unset)
 - [x] REST and WS middleware; `/dev/guest` and `X-Player-ID` only when `APP_ENV=dev`
 - [x] `.env.example` lists JWT, Google, and email settings; tests cover rotation, upgrade, reset, and the Google skip
+
+## Phase 5 acceptance
+
+- [x] `GET /stats`, `GET /matches?cursor=`, `GET /matches/:id` (wins/losses/draws, win rate, streak, rounds + moves)
+- [x] `rsp-client` talks to the Go API when `VITE_USE_MOCK=false`; mock and `/demo` still work
+- [x] Auth, Google button (behind `VITE_GOOGLE_CLIENT_ID`), lobby, create/join (WRONG_PASSCODE / ROOM_FULL), waiting room, board + Ready over WS, results, reconnect, stats, history
+- [x] Vite proxies `/api` and `/ws` to the Go server
+- [x] `make smoke` plays a first-to-1 match with two clients against the live server + Postgres

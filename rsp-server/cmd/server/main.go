@@ -87,7 +87,7 @@ func main() {
 	})
 	r := server.New(h, a).Router()
 
-	log.Printf("listening on %s (phase 4 auth, env=%s, grace=%s)", addr, appEnv, grace)
+	log.Printf("listening on %s (phase 5 stats, env=%s, grace=%s)", addr, appEnv, grace)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}

@@ -1,0 +1,191 @@
+// Smoke drives two HTTP+WS clients through a first-to-1 match against a live
+// server + Postgres. Run the server first (`make run`), then `make smoke`.
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/gorilla/websocket"
+)
+
+func main() {
+	base := getenv("SMOKE_BASE", "http://localhost:8080")
+	if !strings.HasPrefix(base, "http") {
+		base = "http://localhost" + base
+	}
+	wsBase := "ws" + strings.TrimPrefix(base, "http")
+
+	health, err := http.Get(base + "/health")
+	if err != nil {
+		log.Fatalf("health: %v (is the server up? make run)", err)
+	}
+	body, _ := io.ReadAll(health.Body)
+	_ = health.Body.Close()
+	if health.StatusCode != 200 {
+		log.Fatalf("health %d %s", health.StatusCode, body)
+	}
+
+	a := guest(base, "SmokeA")
+	b := guest(base, "SmokeB")
+	room := postJSON(base+"/rooms", a.Access, map[string]int{"winsToFinish": 1, "turnSeconds": 15})
+	_ = postJSON(base+"/rooms/join", b.Access, map[string]string{"passcode": str(room["passcode"])})
+	roomID := str(room["id"])
+	mustStatus(http.StatusNoContent, postRaw(base+"/rooms/"+roomID+"/start", a.Access, nil))
+
+	wa := dialWS(wsBase + "/ws?token=" + a.Access + "&room=" + roomID)
+	wb := dialWS(wsBase + "/ws?token=" + b.Access + "&room=" + roomID)
+	defer wa.Close()
+	defer wb.Close()
+	waitType(wa, "match.started")
+	waitType(wb, "match.started")
+
+	must(wa.WriteJSON(map[string]string{"type": "submit", "move": "rock"}))
+	must(wb.WriteJSON(map[string]string{"type": "submit", "move": "scissors"}))
+	must(wa.WriteJSON(map[string]string{"type": "ready"}))
+	must(wb.WriteJSON(map[string]string{"type": "ready"}))
+	fin := waitType(wa, "match.finished")
+	view, _ := fin["view"].(map[string]any)
+	if str(view["winnerId"]) != a.ID {
+		log.Fatalf("want A to win, view=%v", view)
+	}
+
+	stats := getJSON(base+"/stats", a.Access)
+	if n, _ := stats["wins"].(float64); n < 1 {
+		log.Fatalf("stats wins=%v", stats["wins"])
+	}
+	hist := getJSON(base+"/matches", a.Access)
+	items, _ := hist["items"].([]any)
+	if len(items) < 1 {
+		log.Fatalf("history empty: %v", hist)
+	}
+	first, _ := items[0].(map[string]any)
+	detail := getJSON(base+"/matches/"+str(first["id"]), a.Access)
+	rounds, _ := detail["rounds"].([]any)
+	if len(rounds) < 1 {
+		log.Fatalf("match detail missing rounds: %v", detail)
+	}
+	fmt.Println("smoke ok: first-to-1 match, stats, and history against", base)
+}
+
+type session struct {
+	Access string
+	ID     string
+}
+
+func guest(base, name string) session {
+	raw := postJSON(base+"/auth/guest", "", map[string]string{"displayName": name, "avatar": "rock", "color": "#9DB89A"})
+	user, _ := raw["user"].(map[string]any)
+	return session{Access: str(raw["accessToken"]), ID: str(user["id"])}
+}
+
+func dialWS(url string) *websocket.Conn {
+	c, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		log.Fatalf("ws %s: %v", url, err)
+	}
+	_ = c.SetReadDeadline(time.Now().Add(8 * time.Second))
+	return c
+}
+
+func waitType(c *websocket.Conn, want string) map[string]any {
+	for {
+		var msg map[string]any
+		if err := c.ReadJSON(&msg); err != nil {
+			log.Fatalf("wait %s: %v", want, err)
+		}
+		if str(msg["type"]) == want {
+			return msg
+		}
+	}
+}
+
+func postJSON(url, token string, body any) map[string]any {
+	res := postRaw(url, token, body)
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(res.Body)
+	if res.StatusCode >= 300 {
+		log.Fatalf("POST %s -> %d %s", url, res.StatusCode, raw)
+	}
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return map[string]any{}
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		log.Fatalf("decode %s: %v (%s)", url, err, raw)
+	}
+	return out
+}
+
+func postRaw(url, token string, body any) *http.Response {
+	var r io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		r = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(http.MethodPost, url, r)
+	if err != nil {
+		log.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return res
+}
+
+func getJSON(url, token string) map[string]any {
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(res.Body)
+	if res.StatusCode >= 300 {
+		log.Fatalf("GET %s -> %d %s", url, res.StatusCode, raw)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		log.Fatalf("decode %s: %v (%s)", url, err, raw)
+	}
+	return out
+}
+
+func mustStatus(want int, res *http.Response) {
+	defer res.Body.Close()
+	if res.StatusCode != want {
+		raw, _ := io.ReadAll(res.Body)
+		log.Fatalf("status %d want %d %s", res.StatusCode, want, raw)
+	}
+}
+
+func str(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
+func must(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func getenv(k, d string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return d
+}

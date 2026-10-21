@@ -1,4 +1,4 @@
-.PHONY: test test-race run up down migrate-up migrate-down tidy vet sqlc check-migrations
+.PHONY: test test-race run up down migrate-up migrate-down tidy vet sqlc smoke check-migrations
 
 # Host-side migrate CLI, if installed: https://github.com/golang-migrate/migrate
 # Compose already runs the same files via the migrate service (db:5432).
@@ -44,3 +44,8 @@ migrate-down:
 
 tidy:
 	go mod tidy
+
+# Two HTTP+WS guests play a first-to-1 match against a live server + Postgres.
+# Server must already be up (`make run`). Override with SMOKE_BASE.
+smoke:
+	go run ./cmd/smoke

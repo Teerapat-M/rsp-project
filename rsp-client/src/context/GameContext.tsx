@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api } from '../api'
+import { api, isMock } from '../api'
 import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } from '../types'
 
 type JoinError = { code: 'WRONG_PASSCODE' | 'ROOM_FULL'; passcode: string; message: string } | null
@@ -19,6 +19,7 @@ type GameCtx = {
   leaveRoom: () => Promise<void>
   startGame: () => Promise<void>
   attach: (roomId: string) => void
+  loadRoom: (roomId: string) => Promise<Room>
   submitMove: (move: PlayableMove) => void
   readyUp: () => void
   claimWin: () => void
@@ -139,6 +140,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (room) await api.startGame(room.id)
       },
       attach,
+      loadRoom: async (id) => {
+        const r = await api.getRoom(id)
+        setRoom(r)
+        attach(id)
+        return r
+      },
       submitMove: (move) => conn.current?.send({ type: 'submit', move }),
       readyUp: () => conn.current?.send({ type: 'ready' }),
       claimWin: () => conn.current?.send({ type: 'claim_win' }),
@@ -147,7 +154,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       retryConnection: () => {
         setReconnectAttempt((n) => n + 1)
         setConnectionLost(false)
-        conn.current?.send({ type: 'simulate', kind: 'connection_restore' })
+        if (isMock()) {
+          conn.current?.send({ type: 'simulate', kind: 'connection_restore' })
+        } else if (roomId.current) {
+          attach(roomId.current)
+        }
       },
     }),
     [room, view, remaining, roundResult, connectionLost, reconnectAttempt, playAgainReady, joinError, attach],

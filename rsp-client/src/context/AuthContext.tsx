@@ -10,7 +10,7 @@ type AuthCtx = {
   ready: boolean
   login: (username: string, password: string, rememberMe: boolean) => Promise<User>
   register: (username: string, password: string, email?: string) => Promise<User>
-  google: () => Promise<User>
+  google: (idToken: string) => Promise<User>
   guest: (displayName: string, avatar: AvatarKind, color: string) => Promise<User>
   logout: () => Promise<void>
   refresh: () => Promise<void>
@@ -23,15 +23,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const raw = localStorage.getItem('rsp.user')
-    if (raw) {
-      try {
-        setUser(JSON.parse(raw) as User)
-      } catch {
-        localStorage.removeItem('rsp.user')
+    let cancelled = false
+    ;(async () => {
+      if (!localStorage.getItem('rsp.access')) {
+        const raw = localStorage.getItem('rsp.user')
+        if (raw) {
+          try {
+            if (!cancelled) setUser(JSON.parse(raw) as User)
+          } catch {
+            localStorage.removeItem('rsp.user')
+          }
+        }
+        if (!cancelled) setReady(true)
+        return
       }
+      try {
+        const me = await api.me()
+        if (!cancelled) setUser(me)
+      } catch {
+        if (!cancelled) setUser(null)
+      }
+      if (!cancelled) setReady(true)
+    })()
+    return () => {
+      cancelled = true
     }
-    setReady(true)
   }, [])
 
   const value = useMemo<AuthCtx>(
@@ -44,12 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return s.user
       },
       register: async (username, password, email) => {
-        const s = await api.register({ username, password, email })
+        const s = user?.isGuest
+          ? await api.upgrade({ username, password, email })
+          : await api.register({ username, password, email })
         setUser(s.user)
         return s.user
       },
-      google: async () => {
-        const s = await api.loginGoogle()
+      google: async (idToken) => {
+        const s = await api.loginGoogle(idToken)
         setUser(s.user)
         return s.user
       },

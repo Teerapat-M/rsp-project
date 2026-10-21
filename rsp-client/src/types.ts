@@ -92,6 +92,7 @@ export type UserStats = {
   matchesPlayed: number
   wins: number
   losses: number
+  draws?: number
   winRate: number
   bestStreak: number
   picks: Record<PlayableMove, number>

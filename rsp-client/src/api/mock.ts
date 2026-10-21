@@ -506,7 +506,7 @@ export const mockApi: ApiClient = {
     return sessionFor(user, body.rememberMe)
   },
 
-  async loginGoogle() {
+  async loginGoogle(_idToken?: string) {
     return sessionFor({ ...demoUser, email: 'player123@gmail.com' })
   },
 
@@ -531,6 +531,33 @@ export const mockApi: ApiClient = {
       message: 'If that email is on an account, we sent a reset link.',
       resetUrl,
     }
+  },
+
+  async resetPassword(token: string, password: string) {
+    if (!token) fail('VALIDATION', 'Reset token is required')
+    if (password.length < 6) fail('VALIDATION', 'Password must be at least 6 characters')
+  },
+
+  async upgrade(body: RegisterBody) {
+    const current = currentUser()
+    if (!current.isGuest) fail('VALIDATION', 'account is not a guest')
+    const username = body.username.trim()
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+      fail('VALIDATION', 'Username must be 3–20 letters, numbers, or _')
+    }
+    if (body.password.length < 6) fail('VALIDATION', 'Password must be at least 6 characters')
+    if (usersByName.has(username.toLowerCase())) fail('CONFLICT', 'Username is taken')
+    const user: User = {
+      ...current,
+      displayName: username,
+      username,
+      email: body.email || current.email,
+      isGuest: false,
+    }
+    usersByName.set(username.toLowerCase(), user)
+    passwords.set(username.toLowerCase(), body.password)
+    users.set(user.id, user)
+    return sessionFor(user)
   },
 
   async logout() {
