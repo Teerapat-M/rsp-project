@@ -117,10 +117,16 @@ Layout:
 ```
 cmd/server          process entry (HTTP)
 internal/game       pure rules — no I/O, no clocks
-internal/sqlcdb     sqlc output (later phases)
+internal/ident      TEMPORARY player identity (X-Player-ID / dev guest token)
+internal/passcode   6-digit codes
+internal/rooms      create/join/leave + sqlc store
+internal/hub        in-memory live rooms + WebSocket
+internal/server     gin HTTP
+internal/sqlcdb     sqlc output
 db/migrations       golang-migrate
-db/queries          sqlc input (later phases)
-web/                React app (phase 5)
+db/queries          sqlc input
+docs/ws-protocol.md WebSocket message types
+web/                React app (mock API; HTTP client already matches this phase)
 ```
 
 ---
@@ -129,8 +135,8 @@ web/                React app (phase 5)
 
 | Phase | Ships | Does not ship |
 | --- | --- | --- |
-| **1 — logic + scaffold** (this PR) | `SPEC.md`, idiomatic repo, Compose + Postgres + initial schema, `internal/game` + table-driven tests | HTTP game API, WS, auth, UI |
-| **2 — rooms / passcode / websocket** | Create/join room by passcode, WS connect with JWT placeholder or session id, presence in a room | Real Google/guest login, countdown UI |
+| **1 — logic + scaffold** | `SPEC.md`, idiomatic repo, Compose + Postgres + initial schema, `internal/game` + table-driven tests | HTTP game API, WS, auth, UI |
+| **2 — rooms / passcode / websocket** (this PR) | Create/join room by passcode, WS connect with a **dev guest token** (JWT in phase 4), presence + ready-lobby + disconnect grace | Real Google/guest login, countdown / moves / resolve |
 | **3 — countdown / ready / resolve** | Server timer, submit + ready, hide moves, resolve, `wins_to_finish`, persist round/match rows | Auth, polished UI |
 | **4 — auth** | Guest JWT; username/password register + login; Remember me (refresh token); Forgot password (dev: log the link); bcrypt; guest upgrade to a password account; then Google OAuth | Stats page, drag-drop |
 | **5 — stats / history + React drag-drop** | `user_stats` + history API, React + Vite in `/web`, dnd-kit cards → drop slot → Ready | Production hosting |
@@ -147,3 +153,16 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] `internal/game` covers move resolution, timeout, round/match state, `wins_to_finish`
 - [x] Table-driven unit tests, `go test ./...` passing
 - [x] `docker compose up` starts Postgres and applies migrations
+
+---
+
+## Phase 2 acceptance
+
+- [x] `POST /rooms` with `winsToFinish` / `turnSeconds` mints a unique 6-digit passcode, persists `rooms` + host in `room_players`
+- [x] `POST /rooms/join` by passcode; `WRONG_PASSCODE` (404) and `ROOM_FULL` (409) match the React client in `web/`
+- [x] `POST /rooms/:id/leave` and `GET /rooms/:id`
+- [x] `GET /ws?room=&token=` — join/leave/presence, lobby ready, disconnect grace; types in `docs/ws-protocol.md`
+- [x] In-memory hub (mutex per room + map mutex), empty rooms closed and dropped so passcodes reuse
+- [x] Temporary identity: `X-Player-ID` or `Authorization: Bearer` / `POST /dev/guest` (not phase 4 JWT)
+- [x] Phase 3 hooks only: `POST /rooms/:id/start` and WS `submit`/`ready` (while playing) return `NOT_IMPLEMENTED`
+- [x] Unit tests: passcode, join rules, hub; WS integration via `httptest`; `go test ./... -race`
