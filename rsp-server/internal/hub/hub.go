@@ -634,8 +634,19 @@ func (h *Hub) detach(c *client) {
 		m.graceStop()
 	}
 	m.graceStop = h.after(grace, func() {
-		if playing {
+		s := h.get(roomID)
+		if s == nil {
+			return
+		}
+		s.mu.Lock()
+		stillPlaying := s.match != nil && s.match.Status() == game.StatusPlaying
+		keepSeat := s.match != nil && s.match.Status() == game.StatusFinished
+		s.mu.Unlock()
+		if stillPlaying {
 			h.forfeit(roomID, playerID)
+			return
+		}
+		if keepSeat {
 			return
 		}
 		if _, err := h.Leave(context.Background(), roomID, playerID); err != nil {

@@ -249,7 +249,7 @@ func upgrade(base string, s session, tag string) session {
 	name := fmt.Sprintf("%s%d", tag, time.Now().UnixNano()%1e8)
 	raw := postJSON(base+"/auth/upgrade", s.Access, map[string]string{
 		"username": name,
-		"password": "secret1",
+		"password": "secret12",
 	})
 	user, _ := raw["user"].(map[string]any)
 	if user["isGuest"] == true {

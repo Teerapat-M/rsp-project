@@ -24,6 +24,7 @@ import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy,
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import { opponentInRoom, youInRoom } from '../lib/profile'
+import { RECONNECT_MAX_ATTEMPTS, formatGrace } from '../lib/reconnect'
 import type { PlayableMove, RoundResultView } from '../types'
 
 export function GamePage() {
@@ -93,8 +94,8 @@ function PlaySurface() {
         : placed
           ? 'Press Ready to lock in your pick'
           : over
-            ? 'Drag a card into the drop zone, then press Ready'
-            : 'Drag a card into the drop zone, then press Ready'
+            ? 'Drag or tap a card into the drop zone, then press Ready'
+            : 'Drag or tap a card into the drop zone, then press Ready'
 
   return (
     <AppShell header={false} wide>
@@ -144,6 +145,7 @@ function PlaySurface() {
                   disabled={locked || dc || timeup}
                   selected={false}
                   hidden={active === m}
+                  onPlace={() => game.submitMove(m)}
                 />
               )
             })}
@@ -185,10 +187,13 @@ function PlaySurface() {
         tone="danger"
         icon={<IconWifiOff />}
         title="Connection lost"
-        body="You're offline. Your match is paused and we'll keep trying to reconnect for 30 seconds."
+        body={`You're offline. Your match is paused; the server keeps your seat for ${formatGrace(game.reconnectGraceLeft)}.`}
         status={
           <>
-            <IconRefresh /> Reconnecting… attempt {game.reconnectAttempt} of 5 • 0:21
+            <IconRefresh />{' '}
+            {game.reconnectAttempt > RECONNECT_MAX_ATTEMPTS
+              ? 'Could not reconnect'
+              : `Reconnecting… attempt ${Math.max(1, game.reconnectAttempt)} of ${RECONNECT_MAX_ATTEMPTS} • ${formatGrace(game.reconnectGraceLeft)}`}
           </>
         }
         primaryLabel="Retry now"
@@ -284,11 +289,13 @@ function DraggableCard({
   disabled,
   selected,
   hidden,
+  onPlace,
 }: {
   move: PlayableMove
   disabled: boolean
   selected: boolean
   hidden: boolean
+  onPlace: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: move,
@@ -303,6 +310,13 @@ function DraggableCard({
         ghost={hidden || isDragging}
         listeners={disabled ? undefined : listeners}
         attributes={attributes}
+        onClick={
+          disabled
+            ? undefined
+            : () => {
+                if (!isDragging) onPlace()
+              }
+        }
       />
     </div>
   )

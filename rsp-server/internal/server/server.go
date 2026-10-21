@@ -21,6 +21,9 @@ type Server struct {
 	AuthLimit int
 	// Ping is the readiness check (Postgres). Nil treats /ready as always ok.
 	Ping func(context.Context) error
+	// TrustedProxies is passed to gin so ClientIP honors X-Forwarded-For.
+	// Empty (the default) trusts no proxies.
+	TrustedProxies []string
 }
 
 func New(h *hub.Hub, a *auth.Service) *Server {
@@ -29,9 +32,11 @@ func New(h *hub.Hub, a *auth.Service) *Server {
 
 func (s *Server) Router() *gin.Engine {
 	r := gin.New()
-	// Rate limits key on ClientIP; do not trust X-Forwarded-For until
-	// TRUSTED_PROXIES is set (should-fix).
-	_ = r.SetTrustedProxies(nil)
+	if len(s.TrustedProxies) == 0 {
+		_ = r.SetTrustedProxies(nil)
+	} else {
+		_ = r.SetTrustedProxies(s.TrustedProxies)
+	}
 	r.Use(gin.Recovery(), gin.Logger(), s.cors())
 	r.GET("/health", s.health)
 	r.GET("/ready", s.ready)
@@ -174,6 +179,18 @@ func (s *Server) getRoom(c *gin.Context) {
 	room, err := s.Hub.Get(c.Request.Context(), c.Param("id"))
 	if err != nil {
 		writeErr(c, err, "")
+		return
+	}
+	me := playerFrom(c).ID
+	in := false
+	for _, p := range room.Players {
+		if p.ID == me {
+			in = true
+			break
+		}
+	}
+	if !in {
+		writeErr(c, rooms.ErrNotFound, "")
 		return
 	}
 	c.JSON(http.StatusOK, room)

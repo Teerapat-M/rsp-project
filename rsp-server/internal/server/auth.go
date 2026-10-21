@@ -8,6 +8,7 @@ import (
 	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/ident"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 func (s *Server) registerAuth(r *gin.Engine) {
@@ -218,6 +219,11 @@ func (s *Server) playerFromRequest(c *gin.Context) (ident.Player, error) {
 func bearerOrQuery(r *http.Request) string {
 	if authz := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(authz), "bearer ") {
 		return strings.TrimSpace(authz[7:])
+	}
+	for _, p := range websocket.Subprotocols(r) {
+		if strings.HasPrefix(p, "bearer.") {
+			return strings.TrimPrefix(p, "bearer.")
+		}
 	}
 	return strings.TrimSpace(r.URL.Query().Get("token"))
 }

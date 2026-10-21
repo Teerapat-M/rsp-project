@@ -82,7 +82,7 @@ func doRequest(t *testing.T, ts *httptest.Server, method, path, player, token st
 func registerUser(t *testing.T, ts *httptest.Server, username string) string {
 	t.Helper()
 	res, err := http.Post(ts.URL+"/auth/register", "application/json",
-		bytes.NewBufferString(`{"username":"`+username+`","password":"secret1"}`))
+		bytes.NewBufferString(`{"username":"`+username+`","password":"secret12"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,6 +143,27 @@ func TestRESTCreateJoinLeave(t *testing.T) {
 	res = doJSON(t, ts, http.MethodPost, "/rooms/"+room.ID+"/leave", "bob", nil)
 	if res.StatusCode != http.StatusNoContent {
 		t.Fatalf("leave %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+}
+
+func TestGetRoomRequiresMembership(t *testing.T) {
+	ts := newTestAPI(t)
+	defer ts.Close()
+
+	res := doJSON(t, ts, http.MethodPost, "/rooms", "alice", map[string]int{"winsToFinish": 1, "turnSeconds": 10})
+	var room rooms.Room
+	decode(t, res, &room)
+
+	res = doJSON(t, ts, http.MethodGet, "/rooms/"+room.ID, "carol", nil)
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("stranger GET %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+
+	res = doJSON(t, ts, http.MethodGet, "/rooms/"+room.ID, "alice", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("member GET %d", res.StatusCode)
 	}
 	decode(t, res, nil)
 }
@@ -267,6 +288,31 @@ func TestStartNeedsTwoThenStarts(t *testing.T) {
 		t.Fatalf("host start %d", res.StatusCode)
 	}
 	decode(t, res, nil)
+}
+
+func TestWSAcceptsBearerSubprotocol(t *testing.T) {
+	ts := newTestAPI(t)
+	defer ts.Close()
+	token := registerUser(t, ts, "proto_ok")
+	res := doBearer(t, ts, http.MethodPost, "/rooms", token, map[string]int{"winsToFinish": 1, "turnSeconds": 10})
+	var room rooms.Room
+	decode(t, res, &room)
+
+	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?room=" + room.ID
+	d := websocket.Dialer{Subprotocols: []string{"bearer." + token}}
+	conn, _, err := d.Dial(u, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var msg map[string]any
+	if err := conn.ReadJSON(&msg); err != nil {
+		t.Fatal(err)
+	}
+	if msg["type"] != "room.updated" && msg["type"] != "presence" {
+		t.Fatalf("first frame %+v", msg)
+	}
 }
 
 func TestWSJoinLeavePresence(t *testing.T) {
@@ -596,7 +642,7 @@ func TestWSPlayRound(t *testing.T) {
 
 	res = doJSON(t, ts, http.MethodPost, "/auth/upgrade", "alice", map[string]string{
 		"username": "alice_ok",
-		"password": "secret1",
+		"password": "secret12",
 	})
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("upgrade %d", res.StatusCode)

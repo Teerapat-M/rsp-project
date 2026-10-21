@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
+import { PageStatus } from '../components/PageStatus'
 import { IconCheck, IconClock, IconCopy, IconLogout, IconUsers } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
@@ -12,9 +13,10 @@ import { seatedAvatar, seatedColor } from '../lib/profile'
 export function WaitingRoomPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { room, loadRoom, startGame, leaveRoom, view } = useGame()
+  const { room, loadRoom, startGame, leaveRoom, view, setLobbyReady } = useGame()
   const nav = useNavigate()
   const [copied, setCopied] = useState(false)
+  const [error, setError] = useState('')
   const loadRoomRef = useRef(loadRoom)
   useEffect(() => {
     loadRoomRef.current = loadRoom
@@ -22,16 +24,30 @@ export function WaitingRoomPage() {
 
   useEffect(() => {
     if (!id) return
-    loadRoomRef.current(id).catch(() => nav('/lobby'))
-  }, [id, nav])
+    loadRoomRef.current(id).catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Room not found')
+    })
+  }, [id])
 
   useEffect(() => {
     if (view && !view.finished) nav('/play')
   }, [view, nav])
 
-  if (!room || !user) return null
+  if (error) {
+    return (
+      <PageStatus>
+        {error}{' '}
+        <Button variant="ghost" onClick={() => nav('/lobby')}>
+          Back to lobby
+        </Button>
+      </PageStatus>
+    )
+  }
+  if (!room || !user) return <PageStatus>Connecting…</PageStatus>
   const isHost = room.hostId === user.id
   const canStart = isHost && room.players.length === 2
+  const me = room.players.find((p) => p.id === user.id)
+  const myReady = Boolean(me?.ready)
 
   return (
     <AppShell>
@@ -65,22 +81,26 @@ export function WaitingRoomPage() {
               <div className="playerRow" key={p.id}>
                 <Avatar kind={seatedAvatar(p, user)} color={seatedColor(p, user)} size={36} />
                 <strong>{p.displayName}</strong>
-                {p.isHost ? (
-                  <span className="badge badgeHost">Host</span>
-                ) : (
+                {p.isHost ? <span className="badge badgeHost">Host</span> : null}
+                {p.ready ? (
                   <span className="badge badgeOk">
-                    <IconCheck color="#16A34A" /> Joined
+                    <IconCheck color="#16A34A" /> Ready
                   </span>
+                ) : (
+                  <span className="badge">Waiting</span>
                 )}
               </div>
             ))}
           </div>
         </div>
         <div style={{ width: minWidth, marginTop: 22 }}>
+          <Button block variant="secondary" onClick={() => setLobbyReady(!myReady)}>
+            {myReady ? 'Unready' : 'Ready'}
+          </Button>
           <Button block disabled={!canStart} onClick={() => startGame()}>
             Start Game
           </Button>
-          <p className="hint">Only the host can start</p>
+          <p className="hint">Only the host can start. Ready is optional.</p>
           <div style={{ textAlign: 'center' }}>
             <Button
               variant="dangerText"

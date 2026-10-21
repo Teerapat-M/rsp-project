@@ -117,8 +117,11 @@ export const httpApi: ApiClient = {
   getMatch: (id: string) => req<MatchDetail>(`/matches/${id}`),
   connectMatch(roomId: string, handlers: WsHandlers): WsConnection {
     const token = localStorage.getItem('rsp.access') ?? ''
-    const ws = new WebSocket(`${wsURL()}?token=${encodeURIComponent(token)}&room=${encodeURIComponent(roomId)}`)
+    const qs = new URLSearchParams({ room: roomId })
+    const protocols = token ? [`bearer.${token}`] : undefined
+    const ws = new WebSocket(`${wsURL()}?${qs}`, protocols)
     let closedByUs = false
+    ws.onopen = () => handlers.onEvent({ type: 'connection.restored' })
     ws.onmessage = (ev) => {
       try {
         handlers.onEvent(JSON.parse(String(ev.data)) as WsEvent)

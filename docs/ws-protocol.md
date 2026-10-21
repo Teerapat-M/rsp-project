@@ -5,10 +5,11 @@ Live room and match traffic. The server is authoritative. JSON text frames, one 
 Connect:
 
 ```
-GET /ws?room=<room uuid>&token=<access JWT>
+GET /ws?room=<room uuid>
+Sec-WebSocket-Protocol: bearer.<access JWT>
 ```
 
-The token is a short-lived **access JWT** (same value as `Authorization: Bearer`). Origin checks are open for local dev. In `APP_ENV=dev` only, `X-Player-ID` / a non-JWT `?token=` still work for curl.
+The browser client sends the access JWT as a WebSocket subprotocol (`bearer.<jwt>`) so it does not appear in query logs. `Authorization: Bearer` and `?token=` still work (curl, smoke, tests). Origin checks use `CORS_ORIGINS` (empty in dev = allow any). In `APP_ENV=dev` only, `X-Player-ID` / a non-JWT `?token=` still work for curl.
 
 You must already be in the room (create or join via REST). Unknown room or a stranger gets HTTP 403/404 **before** the upgrade.
 

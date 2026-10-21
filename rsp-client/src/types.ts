@@ -27,6 +27,8 @@ export type RoomPlayer = {
   color: string
   isHost: boolean
   joined: boolean
+  ready?: boolean
+  connected?: boolean
 }
 
 export type Room = {
@@ -162,6 +164,8 @@ export type WsEvent =
 export type WsClientEvent =
   | { type: 'submit'; move: PlayableMove }
   | { type: 'ready' }
+  | { type: 'lobby.ready' }
+  | { type: 'lobby.unready' }
   | { type: 'claim_win' }
   | { type: 'play_again' }
   | { type: 'leave' }

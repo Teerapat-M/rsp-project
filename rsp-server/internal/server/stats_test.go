@@ -59,7 +59,7 @@ func TestGuestForbiddenOnStatsAndHistory(t *testing.T) {
 
 	up := doBearer(t, ts, http.MethodPost, "/auth/upgrade", sess.AccessToken, map[string]string{
 		"username": "mina_ok",
-		"password": "secret1",
+		"password": "secret12",
 	})
 	if up.StatusCode != http.StatusOK {
 		t.Fatalf("upgrade %d", up.StatusCode)

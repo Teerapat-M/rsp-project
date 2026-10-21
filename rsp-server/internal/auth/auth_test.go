@@ -219,6 +219,9 @@ func TestRegisterValidation(t *testing.T) {
 	if _, err := s.Register(ctx, "good_name", "123", ""); !errors.Is(err, ErrValidation) {
 		t.Fatalf("short password: %v", err)
 	}
+	if _, err := s.Register(ctx, "good_name", "secret1", ""); !errors.Is(err, ErrValidation) {
+		t.Fatalf("7-char password: %v", err)
+	}
 	if _, err := s.Register(ctx, "good_name", "password", "not-an-email"); !errors.Is(err, ErrValidation) {
 		t.Fatalf("email: %v", err)
 	}

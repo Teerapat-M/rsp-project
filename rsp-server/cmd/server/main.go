@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/Teerapat-M/rsp-project/internal/auth"
@@ -110,11 +113,29 @@ func main() {
 	api.CORSOrigins = origins
 	api.AuthLimit = limit
 	api.Ping = pool.Ping
+	api.TrustedProxies = server.ParseOrigins(os.Getenv("TRUSTED_PROXIES"))
 	r := api.Router()
 
-	log.Printf("listening on %s (phase 6 deploy, env=%s, grace=%s)", addr, appEnv, grace)
-	if err := r.Run(addr); err != nil {
-		log.Fatal(err)
+	srv := &http.Server{Addr: addr, Handler: r, ReadHeaderTimeout: 5 * time.Second}
+	errCh := make(chan error, 1)
+	go func() {
+		log.Printf("listening on %s (phase 6 deploy, env=%s, grace=%s)", addr, appEnv, grace)
+		errCh <- srv.ListenAndServe()
+	}()
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	select {
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	case <-sig:
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("shutdown: %v", err)
+		}
 	}
 }
 

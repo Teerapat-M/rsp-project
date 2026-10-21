@@ -124,6 +124,7 @@ Run these from `rsp-server/`.
 | `make run` | `go run ./cmd/server` |
 | `make up` / `make down` | Compose up (detached) / down |
 | `make migrate-up` | Run migrations from the host (needs [`golang-migrate`](https://github.com/golang-migrate/migrate) CLI) |
+| `make migrate-down` | Roll back **one** migration (no confirmation prompt — Windows cmd.exe-safe). Repeat to go further. |
 | `make sqlc` | Regenerate `internal/sqlcdb` |
 
 ## Frontend (React)
@@ -188,6 +189,7 @@ Liveness is `GET /health` (process up). Readiness is `GET /ready` (Postgres ping
 | `GOOGLE_CLIENT_ID` | API | Unset disables `POST /auth/google` |
 | `CORS_ORIGINS` | API | Comma-separated browser origins. Required in production (REST + WebSocket) |
 | `RATE_LIMIT_AUTH_PER_MIN` | API | Unauthenticated auth POSTs per IP per minute (default 20) |
+| `TRUSTED_PROXIES` | API | Comma-separated CIDRs/IPs whose `X-Forwarded-For` gin trusts. Empty = none. Prod compose defaults to private ranges so nginx-fronted rate limits key on the browser, not the proxy. |
 | `DISCONNECT_GRACE` | API | Default `20s` |
 | `HTTP_PORT` | Prod compose | Host port for nginx, default `80` |
 | `VITE_API_BASE` | Client build | Default `/api` (nginx strips the prefix) |

@@ -17,7 +17,7 @@ import (
 var usernameRE = regexp.MustCompile(`^[A-Za-z0-9_]{3,20}$`)
 
 const (
-	minPassword = 6
+	minPassword = 8
 	maxPassword = 72
 	// DevJWTSecret is the documented fallback when JWT_SECRET is unset in
 	// development. Production must set a real secret (see cmd/server).
