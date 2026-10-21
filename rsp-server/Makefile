@@ -45,8 +45,9 @@ migrate-down:
 tidy:
 	go mod tidy
 
-# Two HTTP+WS guests play a first-to-1 match and a timeout auto-pick round
-# against a live server + Postgres. Server must already be up (`make run`).
+# Two HTTP+WS guests play a first-to-1 match, a timeout auto-pick round, and a
+# first-to-3 match that includes a draw (server starts the next round after 3s).
+# Against a live server + Postgres. Server must already be up (`make run`).
 # Sockets attach before POST /start so they receive match.started. Override
 # with SMOKE_BASE.
 smoke:

@@ -150,6 +150,7 @@ export type WsEvent =
   | { type: 'tick'; remainingSeconds: number }
   | { type: 'view'; view: PlayerView }
   | { type: 'round.resolved'; result: RoundResultView; view: PlayerView }
+  | { type: 'round.started'; view: PlayerView }
   | { type: 'match.finished'; view: PlayerView }
   | { type: 'opponent.disconnected'; view: PlayerView }
   | { type: 'opponent.reconnected'; view: PlayerView }

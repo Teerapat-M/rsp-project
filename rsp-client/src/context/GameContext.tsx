@@ -64,6 +64,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setRoundResult(ev.result)
           setView(ev.view)
         }
+        if (ev.type === 'round.started') {
+          setView(ev.view)
+          setRoundResult(null)
+          setRemaining(ev.view.remainingSeconds)
+        }
         if (ev.type === 'match.finished') {
           setView(ev.view)
           setRoundResult(null)
@@ -79,6 +84,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => () => conn.current?.close(), [])
+
+  // Server broadcasts round.started / match.finished after the result pause.
+  // If that event is late, drop the overlay locally so both players can still
+  // return to play (or the result screen) after nextRoundIn seconds.
+  useEffect(() => {
+    if (!roundResult) return
+    const roundNo = roundResult.roundNumber
+    const ms = Math.max(1, roundResult.nextRoundIn || 3) * 1000
+    const t = window.setTimeout(() => {
+      setRoundResult((cur) => (cur && cur.roundNumber === roundNo ? null : cur))
+    }, ms)
+    return () => window.clearTimeout(t)
+  }, [roundResult])
 
   const value = useMemo<GameCtx>(
     () => ({

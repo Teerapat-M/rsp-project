@@ -6,12 +6,13 @@ import { IconTrophy } from '../components/Icons'
 import { useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
+import { youInRoom } from '../lib/profile'
 import { useNavigate } from 'react-router-dom'
 import type { PlayableMove } from '../types'
 
 export function MatchResultPage() {
   const { user } = useAuth()
-  const { view, playAgain, playAgainReady, leaveRoom } = useGame()
+  const { view, playAgain, playAgainReady, leaveRoom, room } = useGame()
   const nav = useNavigate()
 
   useEffect(() => {
@@ -25,19 +26,20 @@ export function MatchResultPage() {
       </AppShell>
     )
   }
-  const youScore = view.scores[user.id] ?? 0
+  const you = youInRoom(user, view, room)
+  const youScore = view.scores[you.id] ?? 0
   const oppScore = view.scores[view.opponentId] ?? 0
-  const won = view.winnerId === user.id
+  const won = view.winnerId === you.id
   return (
     <AppShell>
       <div className="pageCenter">
         <div className="resultPage">
           <div className="winnerCol">
-            <Avatar kind={user.avatar} color={user.color} size={88} ring={won} />
+            <Avatar kind={you.avatar} color={you.color} size={88} ring={won} />
             <h1 className="heroTitle" style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               {won ? 'You Win!' : 'You Lose'} {won ? <IconTrophy color="#F2B01E" /> : null}
             </h1>
-            <div style={{ color: '#5f6675' }}>{user.displayName}</div>
+            <div style={{ color: '#5f6675' }}>{you.displayName}</div>
             <div className="scoreLine">
               {youScore} – {oppScore}
             </div>

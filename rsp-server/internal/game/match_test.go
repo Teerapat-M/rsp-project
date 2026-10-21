@@ -450,4 +450,21 @@ func TestDrawDoesNotAwardWin(t *testing.T) {
 	if sa != 0 || sb != 0 {
 		t.Fatalf("scores %d-%d", sa, sb)
 	}
+	if m.RoundNumber() != 2 {
+		t.Fatalf("after a draw the next round should be open, got %d", m.RoundNumber())
+	}
+
+	mustSubmit(t, m, alice, 2, MovePaper)
+	mustSubmit(t, m, bob, 2, MoveRock)
+	_, _ = m.Ready(alice, 2)
+	rr, err = m.Ready(bob, 2)
+	if err != nil || rr == nil {
+		t.Fatalf("round 2 rr=%v err=%v", rr, err)
+	}
+	if rr.Draw || rr.Winner != alice {
+		t.Fatalf("paper beats rock: %+v", rr)
+	}
+	if m.Status() != StatusFinished {
+		t.Fatal("first-to-1 should finish on the round after a draw")
+	}
 }

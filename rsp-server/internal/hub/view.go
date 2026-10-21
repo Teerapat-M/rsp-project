@@ -63,6 +63,10 @@ type roundResultView struct {
 }
 
 func (h *Hub) playerViewLocked(s *session, you ident.Player) playerView {
+	if m, ok := s.findLocked(you.ID); ok {
+		you = m.player
+	}
+	you = you.WithDefaults()
 	v := playerView{
 		RoomID:      s.id,
 		MatchID:     s.matchID,
@@ -80,6 +84,7 @@ func (h *Hub) playerViewLocked(s *session, you ident.Player) playerView {
 	}
 	opp, oppMem := s.opponentLocked(you.ID)
 	if oppMem != nil {
+		opp = opp.WithDefaults()
 		v.OpponentID = opp.ID
 		v.OpponentName = opp.DisplayName
 		v.OpponentAvatar = opp.Avatar

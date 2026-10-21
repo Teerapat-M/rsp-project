@@ -104,6 +104,7 @@ func MemberIDs(players []Player) []string {
 }
 
 func FromIdent(p ident.Player, isHost, ready, connected bool) Player {
+	p = p.WithDefaults()
 	return Player{
 		ID:          p.ID,
 		DisplayName: p.DisplayName,
