@@ -126,7 +126,7 @@ func (q *Queries) InsertRoomPlayer(ctx context.Context, arg InsertRoomPlayerPara
 }
 
 const listRoomPlayers = `-- name: ListRoomPlayers :many
-SELECT u.id, u.display_name, u.is_guest, rp.joined_at
+SELECT u.id, u.display_name, u.is_guest, u.avatar, u.color, rp.joined_at
 FROM room_players rp
 INNER JOIN users u ON u.id = rp.user_id
 WHERE rp.room_id = $1
@@ -137,6 +137,8 @@ type ListRoomPlayersRow struct {
 	ID          uuid.UUID          `json:"id"`
 	DisplayName string             `json:"display_name"`
 	IsGuest     bool               `json:"is_guest"`
+	Avatar      string             `json:"avatar"`
+	Color       string             `json:"color"`
 	JoinedAt    pgtype.Timestamptz `json:"joined_at"`
 }
 
@@ -153,6 +155,8 @@ func (q *Queries) ListRoomPlayers(ctx context.Context, roomID uuid.UUID) ([]List
 			&i.ID,
 			&i.DisplayName,
 			&i.IsGuest,
+			&i.Avatar,
+			&i.Color,
 			&i.JoinedAt,
 		); err != nil {
 			return nil, err

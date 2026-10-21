@@ -5,10 +5,10 @@ Live room and match traffic. The server is authoritative. JSON text frames, one 
 Connect:
 
 ```
-GET /ws?room=<room uuid>&token=<dev guest token>
+GET /ws?room=<room uuid>&token=<access JWT>
 ```
 
-The token is the **temporary** player identity (same value as `Authorization: Bearer` / `X-Player-ID`). Phase 4 swaps this for a JWT. Origin checks are open for local dev.
+The token is a short-lived **access JWT** (same value as `Authorization: Bearer`). Origin checks are open for local dev. In `APP_ENV=dev` only, `X-Player-ID` / a non-JWT `?token=` still work for curl.
 
 You must already be in the room (create or join via REST). Unknown room or a stranger gets HTTP 403/404 **before** the upgrade.
 
@@ -60,7 +60,6 @@ Disconnect grace (default 20s, `DISCONNECT_GRACE`):
 | `submit` | `{ "move": "rock"\|"paper"\|"scissors" }` | Store a hidden playable move. Allowed until Ready. Changing the card replaces the previous one. |
 | `claim_win` | `{}` | If the opponent is disconnected mid-match, forfeit them immediately (same as grace expiry). |
 | `play_again` | `{}` | After `match.finished`. When both have sent it, a new match starts in the same room. |
-| `simulate` | — | Still `error` `NOT_IMPLEMENTED` (mock-only on the React client). |
 
 Ready without a card → `error` `VALIDATION` (`ready requires a submitted move`). After Ready the move is locked.
 
@@ -78,12 +77,10 @@ After `round.resolved` there is a 3s pause (`nextRoundIn`) so the UI can show th
 
 At round end the server writes `rounds` + `round_moves` (`auto_picked` is true when the timer chose the card). At match end it sets `matches.winner_id` / `ended_at` and increments `user_stats` (matches played, wins/losses, throw counts — auto-picks count as throws).
 
-## Identity (temporary)
+## Identity
 
-Until phase 4:
+REST and WS both trust the access JWT (`Authorization: Bearer` or `?token=`). Refresh tokens are rotated via `POST /auth/refresh`. Logout revokes the refresh token.
 
-1. `X-Player-ID` (any string; UUIDs kept, anything else hashed to a stable UUID)
-2. `Authorization: Bearer <token>`
-3. `?token=` on the WebSocket URL
+`POST /auth/guest`, `/auth/register`, `/auth/login`, `/auth/google` mint `{ accessToken, refreshToken, user }`. Guests can `POST /auth/upgrade` (same `users.id`).
 
-`POST /dev/guest` mints a guest user and returns `{ accessToken, user }` in the shape the React client already stores. The access token **is** the user UUID — not a JWT.
+`POST /dev/guest` is the same as `/auth/guest` and exists **only when `APP_ENV=dev`**. Production rejects it (404) and ignores `X-Player-ID`.

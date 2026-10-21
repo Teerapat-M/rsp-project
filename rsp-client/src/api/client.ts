@@ -23,9 +23,11 @@ export type WsHandlers = {
 export type ApiClient = {
   register: (body: RegisterBody) => Promise<AuthSession>
   login: (body: LoginBody) => Promise<AuthSession>
-  loginGoogle: () => Promise<AuthSession>
+  loginGoogle: (idToken?: string) => Promise<AuthSession>
   loginGuest: (body: GuestBody) => Promise<AuthSession>
   forgotPassword: (email: string) => Promise<{ message: string; resetUrl?: string }>
+  resetPassword: (token: string, password: string) => Promise<void>
+  upgrade: (body: RegisterBody) => Promise<AuthSession>
   logout: () => Promise<void>
   me: () => Promise<User>
   createRoom: (body: CreateRoomBody) => Promise<Room>
@@ -37,9 +39,4 @@ export type ApiClient = {
   getHistory: (cursor?: string) => Promise<HistoryPage>
   getMatch: (id: string) => Promise<MatchDetail>
   connectMatch: (roomId: string, handlers: WsHandlers) => WsConnection
-  applyDemo?: (id: string) => Promise<string>
-}
-
-export function isMock(): boolean {
-  return import.meta.env.VITE_USE_MOCK !== 'false'
 }

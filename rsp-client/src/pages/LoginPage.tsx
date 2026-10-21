@@ -7,6 +7,28 @@ import { HeaderWave } from '../components/Wave'
 import { IconEye, IconGmail, IconLock, IconUser } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
+const showGoogle = Boolean(googleClientId)
+
+function loadGis(): Promise<void> {
+  if (window.google?.accounts?.id) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector<HTMLScriptElement>('script[data-gis]')
+    if (existing) {
+      existing.addEventListener('load', () => resolve())
+      existing.addEventListener('error', () => reject(new Error('Could not load Google')))
+      return
+    }
+    const s = document.createElement('script')
+    s.src = 'https://accounts.google.com/gsi/client'
+    s.async = true
+    s.dataset.gis = '1'
+    s.onload = () => resolve()
+    s.onerror = () => reject(new Error('Could not load Google'))
+    document.head.appendChild(s)
+  })
+}
+
 export function LoginPage() {
   const { login, google } = useAuth()
   const nav = useNavigate()
@@ -73,16 +95,42 @@ export function LoginPage() {
             Sign In
           </Button>
           <div className="divider">or</div>
-          <Button
-            variant="secondary"
-            block
-            onClick={async () => {
-              await google()
-              nav('/lobby')
-            }}
-          >
-            <IconGmail /> Continue with Gmail
-          </Button>
+          {showGoogle ? (
+            <Button
+              variant="secondary"
+              block
+              type="button"
+              onClick={async () => {
+                setBusy(true)
+                setError('')
+                try {
+                  await loadGis()
+                  const idToken = await new Promise<string>((resolve, reject) => {
+                    if (!window.google?.accounts?.id) {
+                      reject(new Error('Google is not configured'))
+                      return
+                    }
+                    window.google.accounts.id.initialize({
+                      client_id: googleClientId,
+                      callback: (r) => {
+                        if (r.credential) resolve(r.credential)
+                        else reject(new Error('Google sign-in cancelled'))
+                      },
+                    })
+                    window.google.accounts.id.prompt()
+                  })
+                  await google(idToken)
+                  nav('/lobby')
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Google sign-in failed')
+                } finally {
+                  setBusy(false)
+                }
+              }}
+            >
+              <IconGmail /> Continue with Gmail
+            </Button>
+          ) : null}
           <Button variant="secondary" block to="/guest">
             <IconUser /> Continue as Guest
           </Button>

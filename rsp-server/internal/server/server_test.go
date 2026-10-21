@@ -10,20 +10,34 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/hub"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func init() {
 	gin.SetMode(gin.TestMode)
 }
 
+func testAuth(st *rooms.Memory) *auth.Service {
+	return auth.New(st, auth.Config{
+		Secret:          []byte("test-secret-at-least-32-bytes-long!!"),
+		AppEnv:          "dev",
+		BcryptCost:      bcrypt.MinCost,
+		AccessTTL:       time.Hour,
+		RefreshTTL:      24 * time.Hour,
+		RefreshRemember: 72 * time.Hour,
+	})
+}
+
 func newTestAPI(t *testing.T) *httptest.Server {
 	t.Helper()
-	h := hub.New(rooms.NewMemory(), hub.Config{Grace: 200 * time.Millisecond})
-	return httptest.NewServer(New(h).Router())
+	st := rooms.NewMemory()
+	h := hub.New(st, hub.Config{Grace: 200 * time.Millisecond})
+	return httptest.NewServer(New(h, testAuth(st)).Router())
 }
 
 func doJSON(t *testing.T, ts *httptest.Server, method, path, player string, body any) *http.Response {
@@ -357,7 +371,7 @@ func TestHealth(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body["phase"] != float64(3) {
+	if body["phase"] != float64(5) {
 		t.Fatalf("%v", body)
 	}
 }
@@ -430,4 +444,23 @@ func TestWSPlayRound(t *testing.T) {
 		t.Fatalf("result %+v", result)
 	}
 	_ = waitType(aliceWS, "match.finished", 5*time.Second)
+
+	res = doJSON(t, ts, http.MethodGet, "/stats", "alice", nil)
+	var st rooms.UserStats
+	decode(t, res, &st)
+	if st.Wins < 1 || st.MatchesPlayed < 1 {
+		t.Fatalf("stats after win %+v", st)
+	}
+	res = doJSON(t, ts, http.MethodGet, "/matches", "alice", nil)
+	var page rooms.HistoryPage
+	decode(t, res, &page)
+	if page.Total < 1 || len(page.Items) < 1 {
+		t.Fatalf("history %+v", page)
+	}
+	res = doJSON(t, ts, http.MethodGet, "/matches/"+page.Items[0].ID, "alice", nil)
+	var detail rooms.MatchDetail
+	decode(t, res, &detail)
+	if len(detail.Rounds) < 1 || detail.Rounds[0].You != "rock" {
+		t.Fatalf("detail %+v", detail)
+	}
 }

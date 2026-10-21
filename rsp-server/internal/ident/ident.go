@@ -1,13 +1,8 @@
-// Package ident is a TEMPORARY player identity until phase 4 JWT auth.
+// Package ident is the player identity the hub and HTTP layer share.
 //
-// Resolution order:
-//  1. X-Player-ID header
-//  2. Authorization: Bearer <token>
-//  3. ?token= query (WebSocket)
-//
-// A UUID is used as-is. Any other string is hashed to a stable UUID (v5) so
-// curl -H 'X-Player-ID: alice' stays the same player across requests.
-// The Bearer token for a minted guest is that UUID (a "dev guest token").
+// Production auth is a JWT (internal/auth). In APP_ENV=dev only, FromRequest
+// still accepts X-Player-ID / a non-JWT bearer / ?token= so curl and older
+// tests work. Those values are hashed to a stable UUID when they are not one.
 package ident
 
 import (
@@ -17,6 +12,18 @@ import (
 
 	"github.com/google/uuid"
 )
+
+// LooksLikeJWT is three base64url segments separated by dots. Dev identity
+// must not hash a failed access token into a new guest UUID.
+func LooksLikeJWT(tok string) bool {
+	n := 0
+	for i := 0; i < len(tok); i++ {
+		if tok[i] == '.' {
+			n++
+		}
+	}
+	return n == 2 && len(tok) > 8
+}
 
 const (
 	HeaderPlayerID     = "X-Player-ID"
@@ -34,17 +41,18 @@ var DevNamespace = uuid.MustParse("a51a0c2e-7b4d-4f8e-9c1a-2d3e4f506070")
 
 var ErrNoPlayer = errors.New("missing player identity")
 
-// Player is who the server treats as the caller. Avatar/color are not in Postgres
-// yet (phase 4/5); they live on the in-memory hub so the frontend JSON matches.
+// Player is who the server treats as the caller.
 type Player struct {
 	ID          string
 	DisplayName string
+	Username    string
+	Email       string
 	Avatar      string
 	Color       string
 	IsGuest     bool
 }
 
-func (p Player) withDefaults() Player {
+func (p Player) WithDefaults() Player {
 	if p.DisplayName == "" {
 		p.DisplayName = DefaultName
 	}
@@ -54,7 +62,6 @@ func (p Player) withDefaults() Player {
 	if p.Color == "" {
 		p.Color = DefaultColor
 	}
-	p.IsGuest = true
 	return p
 }
 
@@ -73,11 +80,17 @@ func FromRequest(r *http.Request) (Player, error) {
 	raw := strings.TrimSpace(r.Header.Get(HeaderPlayerID))
 	if raw == "" {
 		if auth := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(auth), "bearer ") {
-			raw = strings.TrimSpace(auth[7:])
+			tok := strings.TrimSpace(auth[7:])
+			if !LooksLikeJWT(tok) {
+				raw = tok
+			}
 		}
 	}
 	if raw == "" {
-		raw = strings.TrimSpace(r.URL.Query().Get("token"))
+		tok := strings.TrimSpace(r.URL.Query().Get("token"))
+		if !LooksLikeJWT(tok) {
+			raw = tok
+		}
 	}
 	if raw == "" {
 		return Player{}, ErrNoPlayer
@@ -90,10 +103,12 @@ func FromRequest(r *http.Request) (Player, error) {
 		}
 	}
 
-	return Player{
+	p := Player{
 		ID:          Normalize(raw).String(),
 		DisplayName: name,
 		Avatar:      strings.TrimSpace(r.Header.Get(HeaderPlayerAvatar)),
 		Color:       strings.TrimSpace(r.Header.Get(HeaderPlayerColor)),
-	}.withDefaults(), nil
+		IsGuest:     true,
+	}
+	return p.WithDefaults(), nil
 }

@@ -31,20 +31,24 @@ func (p *Postgres) EnsureGuest(ctx context.Context, pl ident.Player) (ident.Play
 	if name == "" {
 		name = ident.DefaultName
 	}
-	row, err := p.q.InsertGuest(ctx, sqlcdb.InsertGuestParams{ID: id, DisplayName: name})
+	avatar := pl.Avatar
+	if avatar == "" {
+		avatar = ident.DefaultAvatar
+	}
+	color := pl.Color
+	if color == "" {
+		color = ident.DefaultColor
+	}
+	row, err := p.q.InsertGuest(ctx, sqlcdb.InsertGuestParams{
+		ID:          id,
+		DisplayName: name,
+		Avatar:      avatar,
+		Color:       color,
+	})
 	if err != nil {
 		return ident.Player{}, err
 	}
-	pl.ID = row.ID.String()
-	pl.DisplayName = row.DisplayName
-	pl.IsGuest = row.IsGuest
-	if pl.Avatar == "" {
-		pl.Avatar = ident.DefaultAvatar
-	}
-	if pl.Color == "" {
-		pl.Color = ident.DefaultColor
-	}
-	return pl, nil
+	return PlayerFromUser(row), nil
 }
 
 func (p *Postgres) InsertRoom(ctx context.Context, hostID, passcode string, wins, seconds int) (Room, error) {
@@ -132,8 +136,8 @@ func (p *Postgres) ListPlayers(ctx context.Context, roomID string) ([]Player, er
 		out = append(out, Player{
 			ID:          r.ID.String(),
 			DisplayName: r.DisplayName,
-			Avatar:      ident.DefaultAvatar,
-			Color:       ident.DefaultColor,
+			Avatar:      orDefault(r.Avatar, ident.DefaultAvatar),
+			Color:       orDefault(r.Color, ident.DefaultColor),
 			IsHost:      r.ID == room.HostID,
 			Joined:      true,
 		})
@@ -281,4 +285,11 @@ func mapNotFound(err error) error {
 func isUnique(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func orDefault(v, fallback string) string {
+	if v == "" {
+		return fallback
+	}
+	return v
 }

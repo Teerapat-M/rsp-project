@@ -12,13 +12,34 @@ import (
 // Memory is an in-process Store. Used by tests and as the uniqueness source
 // the hub already holds; production wraps Postgres.
 type Memory struct {
-	mu      sync.Mutex
-	users   map[string]ident.Player
-	rooms   map[string]*memRoom
-	byCode  map[string]string // passcode → id, open rooms only
-	matches map[string]*MemMatch
-	stats   map[string]MemStats
-	now     func() time.Time
+	mu        sync.Mutex
+	users     map[string]ident.Player
+	hashes    map[string]string // user id → bcrypt hash
+	providers map[string]string // provider+"\x00"+pid → user id
+	refresh   map[string]memRefresh
+	resets    map[string]memReset
+	rooms     map[string]*memRoom
+	byCode    map[string]string // passcode → id, open rooms only
+	matches   map[string]*MemMatch
+	stats     map[string]MemStats
+	now       func() time.Time
+}
+
+type memRefresh struct {
+	ID        string
+	UserID    string
+	Hash      string
+	ExpiresAt time.Time
+	CreatedAt time.Time
+	Revoked   bool
+}
+
+type memReset struct {
+	ID        string
+	UserID    string
+	Hash      string
+	ExpiresAt time.Time
+	Used      bool
 }
 
 // MemMatch is in-memory persistence for tests (and hub play without Postgres).
@@ -27,6 +48,7 @@ type MemMatch struct {
 	RoomID   string
 	WinnerID string
 	Ended    bool
+	EndedAt  time.Time
 	Rounds   []MemRound
 }
 
@@ -49,12 +71,16 @@ type memRoom struct {
 
 func NewMemory() *Memory {
 	return &Memory{
-		users:   make(map[string]ident.Player),
-		rooms:   make(map[string]*memRoom),
-		byCode:  make(map[string]string),
-		matches: make(map[string]*MemMatch),
-		stats:   make(map[string]MemStats),
-		now:     time.Now,
+		users:     make(map[string]ident.Player),
+		hashes:    make(map[string]string),
+		providers: make(map[string]string),
+		refresh:   make(map[string]memRefresh),
+		resets:    make(map[string]memReset),
+		rooms:     make(map[string]*memRoom),
+		byCode:    make(map[string]string),
+		matches:   make(map[string]*MemMatch),
+		stats:     make(map[string]MemStats),
+		now:       time.Now,
 	}
 }
 
@@ -238,6 +264,7 @@ func (m *Memory) FinishMatch(_ context.Context, matchID, winnerID string) error 
 	}
 	mm.WinnerID = winnerID
 	mm.Ended = true
+	mm.EndedAt = m.now()
 	return nil
 }
 
