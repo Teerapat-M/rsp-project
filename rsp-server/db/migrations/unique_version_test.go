@@ -14,7 +14,7 @@ import (
 // Matches golang-migrate's filename parser: {version}_{title}.{direction}.{ext}
 var migrateName = regexp.MustCompile(`^([0-9]+)_(.*)\.(up|down)\.sql$`)
 
-func TestMigrationVersionsAreUnique(t *testing.T) {
+func TestUniqueVersion(t *testing.T) {
 	t.Parallel()
 	if err := uniqueMigrationVersions(migrationsDir(t)); err != nil {
 		t.Fatal(err)
