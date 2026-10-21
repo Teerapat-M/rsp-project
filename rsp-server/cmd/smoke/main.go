@@ -219,6 +219,18 @@ func seatAndConnect(base, wsBase string, winsToFinish, turnSeconds int, avatarA,
 	return a, b, roomID, wa, wb
 }
 
+func assertRoomAvatars(room map[string]any, idA, avatarA, idB, avatarB string) {
+	players, _ := room["players"].([]any)
+	got := map[string]string{}
+	for _, raw := range players {
+		p, _ := raw.(map[string]any)
+		got[str(p["id"])] = str(p["avatar"])
+	}
+	if got[idA] != avatarA || got[idB] != avatarB {
+		log.Fatalf("room snapshot avatars %v want %s=%s %s=%s", got, idA, avatarA, idB, avatarB)
+	}
+}
+
 type session struct {
 	Access string
 	ID     string

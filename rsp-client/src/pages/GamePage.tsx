@@ -16,7 +16,8 @@ import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card, FaceDown } from '../components/Card'
-import { HAND_ORDER, Hand, moveLabel, RandomBadge } from '../components/Hand'
+import { HAND_ORDER, moveLabel, RandomBadge } from '../components/Hand'
+import { RoundResultPicks } from '../components/RoundResultPicks'
 import { Modal } from '../components/Modal'
 import { Timer } from '../components/Timer'
 import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
@@ -369,33 +370,7 @@ function RoundResultBody({
         <div className={bannerCls}>
           {roundResult.youWon ? <IconTrophy size={22} color="#F2B01E" /> : null} {title}
         </div>
-        <div className="vsRow">
-          <div className={`vsPick ${roundResult.youWon ? 'win' : ''}`}>
-            <span>You</span>
-            <div className="bigCard">
-              <Hand move={roundResult.yourMove as PlayableMove} size={72} />
-              {moveLabel(roundResult.yourMove)}
-            </div>
-            <RandomBadge show={roundResult.yourAutoPicked} />
-            {roundResult.youWon ? <span className="badge badgeOk">Winner</span> : null}
-          </div>
-          <div className="vs">VS</div>
-          <div className={`vsPick ${!roundResult.youWon && !roundResult.draw ? 'win' : ''}`}>
-            <span>Opponent</span>
-            <div className="bigCard">
-              <Hand move={roundResult.opponentMove as PlayableMove} size={72} />
-              {moveLabel(roundResult.opponentMove)}
-            </div>
-            <RandomBadge show={roundResult.opponentAutoPicked} />
-            {roundResult.draw ? null : !roundResult.youWon ? (
-              <span className="badge badgeOk">Winner</span>
-            ) : (
-              <span className="badge" style={{ background: '#fde8e8', color: '#dc2626' }}>
-                Lost
-              </span>
-            )}
-          </div>
-        </div>
+        <RoundResultPicks roundResult={roundResult} />
         <p className="hint">{hint}</p>
       </div>
     </AppShell>

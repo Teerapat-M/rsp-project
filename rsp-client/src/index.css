@@ -521,6 +521,11 @@ a {
   border: 1px solid #16a34a;
 }
 
+.badgeLost {
+  background: #fde8e8;
+  color: #dc2626;
+}
+
 .hint {
   text-align: center;
   color: var(--muted);
