@@ -16,12 +16,20 @@ export function PlayerChip({ user }: { user: User }) {
       </button>
       {open ? (
         <div className="chipMenu">
-          <button type="button" onClick={() => { setOpen(false); nav('/stats') }}>
-            Stats
-          </button>
-          <button type="button" onClick={() => { setOpen(false); nav('/history') }}>
-            History
-          </button>
+          {user.isGuest ? (
+            <button type="button" onClick={() => { setOpen(false); nav('/register') }}>
+              Create account
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={() => { setOpen(false); nav('/stats') }}>
+                Stats
+              </button>
+              <button type="button" onClick={() => { setOpen(false); nav('/history') }}>
+                History
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={async () => {

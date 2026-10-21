@@ -7,6 +7,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func requireRegistered(c *gin.Context) {
+	if playerFrom(c).IsGuest {
+		writeAPIError(c, http.StatusForbidden, "FORBIDDEN",
+			"stats and history require a registered account", nil)
+		return
+	}
+	c.Next()
+}
+
 func (s *Server) getStats(c *gin.Context) {
 	st, err := s.Hub.Store().UserStats(c.Request.Context(), playerFrom(c).ID)
 	if err != nil {

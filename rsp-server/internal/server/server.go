@@ -32,8 +32,8 @@ func (s *Server) Router() *gin.Engine {
 	authed.GET("/rooms/:id", s.getRoom)
 	authed.POST("/rooms/:id/leave", s.leaveRoom)
 	authed.POST("/rooms/:id/start", s.startRoom)
-	authed.GET("/stats", s.getStats)
-	authed.GET("/matches", s.listMatches)
+	authed.GET("/stats", requireRegistered, s.getStats)
+	authed.GET("/matches", requireRegistered, s.listMatches)
 	authed.GET("/matches/:id", s.getMatch)
 
 	r.GET("/ws", s.ws)

@@ -62,6 +62,7 @@ func playSubmittedMatch(base, wsBase string) {
 		log.Fatalf("want A to win, view=%v", view)
 	}
 
+	a = upgrade(base, a, "sma")
 	stats := getJSON(base+"/stats", a.Access)
 	if n, _ := stats["wins"].(float64); n < 1 {
 		log.Fatalf("stats wins=%v", stats["wins"])
@@ -108,6 +109,7 @@ func playTimeoutRound(base, wsBase string) {
 	}
 	waitType(wa, "match.finished")
 
+	a = upgrade(base, a, "smb")
 	hist := getJSON(base+"/matches", a.Access)
 	items, _ := hist["items"].([]any)
 	if len(items) < 1 {
@@ -231,16 +233,17 @@ func guest(base, name, avatar string) session {
 	return session{Access: str(raw["accessToken"]), ID: str(user["id"])}
 }
 
-func assertRoomAvatars(room map[string]any, idA, avatarA, idB, avatarB string) {
-	players, _ := room["players"].([]any)
-	got := map[string]string{}
-	for _, raw := range players {
-		p, _ := raw.(map[string]any)
-		got[str(p["id"])] = str(p["avatar"])
+func upgrade(base string, s session, tag string) session {
+	name := fmt.Sprintf("%s%d", tag, time.Now().UnixNano()%1e8)
+	raw := postJSON(base+"/auth/upgrade", s.Access, map[string]string{
+		"username": name,
+		"password": "secret1",
+	})
+	user, _ := raw["user"].(map[string]any)
+	if user["isGuest"] == true {
+		log.Fatalf("upgrade still guest: %v", raw)
 	}
-	if got[idA] != avatarA || got[idB] != avatarB {
-		log.Fatalf("room snapshot avatars %v want %s=%s %s=%s", got, idA, avatarA, idB, avatarB)
-	}
+	return session{Access: str(raw["accessToken"]), ID: str(user["id"])}
 }
 
 func dialWS(url string) *websocket.Conn {
