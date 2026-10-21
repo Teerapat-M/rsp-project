@@ -31,7 +31,6 @@ export function GamePage() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const roomQ = params.get('room')
-  const demo = params.get('demo')
 
   useEffect(() => {
     if (roomQ) attach(roomQ)
@@ -51,10 +50,10 @@ export function GamePage() {
     )
   }
 
-  return <PlaySurface demo={demo} />
+  return <PlaySurface />
 }
 
-function PlaySurface({ demo }: { demo: string | null }) {
+function PlaySurface() {
   const { user } = useAuth()
   const game = useGame()
   const view = game.view
@@ -180,7 +179,7 @@ function PlaySurface({ demo }: { demo: string | null }) {
         <DragOverlay>{active ? <Card move={active} dragging /> : null}</DragOverlay>
       </DndContext>
       <Modal
-        open={game.connectionLost || demo === 'connection'}
+        open={game.connectionLost}
         tone="danger"
         icon={<IconWifiOff />}
         title="Connection lost"

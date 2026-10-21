@@ -5,6 +5,7 @@ import { Button } from '../components/Button'
 import { Hand, moveLabel, RandomBadge } from '../components/Hand'
 import { IconArrowLeft } from '../components/Icons'
 import { api } from '../api'
+import { formatPlayedAt } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import type { MatchDetail, PlayableMove } from '../types'
@@ -32,7 +33,7 @@ export function MatchDetailPage() {
           {user.displayName} vs {m.opponentName}
         </h1>
         <div className="pill" style={{ borderColor: '#16a34a', color: '#16a34a', background: '#e3f5e9' }}>
-          {m.won ? 'Win' : 'Loss'} • {m.youScore} – {m.opponentScore} • First to {m.winsToFinish} • {m.turnSeconds}s/round • {m.playedAt}
+          {m.won ? 'Win' : 'Loss'} • {m.youScore} – {m.opponentScore} • First to {m.winsToFinish} • {m.turnSeconds}s/round • {formatPlayedAt(m.playedAt)}
         </div>
         <div className="panel table">
           <div className="tableHead">

@@ -19,11 +19,11 @@ type GameCtx = {
   leaveRoom: () => Promise<void>
   startGame: () => Promise<void>
   attach: (roomId: string) => void
+  loadRoom: (roomId: string) => Promise<Room>
   submitMove: (move: PlayableMove) => void
   readyUp: () => void
   claimWin: () => void
   playAgain: () => void
-  simulate: (kind: 'opponent_dc' | 'connection_lost' | 'connection_restore') => void
   retryConnection: () => void
 }
 
@@ -80,17 +80,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => conn.current?.close(), [])
 
-  useEffect(() => {
-    const onSim = (ev: Event) => {
-      const kind = (ev as CustomEvent<string>).detail
-      if (kind === 'opponent_dc' || kind === 'connection_lost' || kind === 'connection_restore') {
-        conn.current?.send({ type: 'simulate', kind })
-      }
-    }
-    window.addEventListener('rsp-simulate', onSim)
-    return () => window.removeEventListener('rsp-simulate', onSim)
-  }, [])
-
   const value = useMemo<GameCtx>(
     () => ({
       room,
@@ -139,15 +128,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (room) await api.startGame(room.id)
       },
       attach,
+      loadRoom: async (id) => {
+        const r = await api.getRoom(id)
+        setRoom(r)
+        attach(id)
+        return r
+      },
       submitMove: (move) => conn.current?.send({ type: 'submit', move }),
       readyUp: () => conn.current?.send({ type: 'ready' }),
       claimWin: () => conn.current?.send({ type: 'claim_win' }),
       playAgain: () => conn.current?.send({ type: 'play_again' }),
-      simulate: (kind) => conn.current?.send({ type: 'simulate', kind }),
       retryConnection: () => {
         setReconnectAttempt((n) => n + 1)
         setConnectionLost(false)
-        conn.current?.send({ type: 'simulate', kind: 'connection_restore' })
+        if (roomId.current) attach(roomId.current)
       },
     }),
     [room, view, remaining, roundResult, connectionLost, reconnectAttempt, playAgainReady, joinError, attach],

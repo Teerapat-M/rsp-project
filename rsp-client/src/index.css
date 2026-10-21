@@ -1058,25 +1058,6 @@ a {
   flex-wrap: wrap;
 }
 
-.demoGrid {
-  width: min(720px, 100%);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.demoGrid a,
-.demoGrid button {
-  text-align: left;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text);
-}
-
 .navBack {
   display: none;
 }
@@ -1126,8 +1107,7 @@ a {
   .waitingGrid,
   .statsGrid,
   .statsLower,
-  .resultPage,
-  .demoGrid {
+  .resultPage {
     grid-template-columns: 1fr;
   }
 

@@ -48,6 +48,7 @@ type MemMatch struct {
 	RoomID   string
 	WinnerID string
 	Ended    bool
+	EndedAt  time.Time
 	Rounds   []MemRound
 }
 
@@ -263,6 +264,7 @@ func (m *Memory) FinishMatch(_ context.Context, matchID, winnerID string) error 
 	}
 	mm.WinnerID = winnerID
 	mm.Ended = true
+	mm.EndedAt = m.now()
 	return nil
 }
 

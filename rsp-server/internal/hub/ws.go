@@ -20,9 +20,8 @@ const (
 	maxMsg     = 4096
 )
 
-// ErrPhase3 is returned for mock-only client messages (simulate) that the
-// real hub does not implement.
-var ErrPhase3 = errors.New("simulate is mock-only")
+// ErrPhase3 is returned when play/start handlers are unset.
+var ErrPhase3 = errors.New("not implemented")
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -34,7 +33,6 @@ var upgrader = websocket.Upgrader{
 type ClientMessage struct {
 	Type string `json:"type"`
 	Move string `json:"move,omitempty"`
-	Kind string `json:"kind,omitempty"`
 }
 
 type client struct {
@@ -157,7 +155,7 @@ func (h *Hub) handleClient(c *client, data []byte) {
 		h.playOrReject(c, msg)
 	case "lobby.unready":
 		_, _ = h.SetLobbyReady(c.sess.id, c.player.ID, false)
-	case "submit", "claim_win", "play_again", "simulate":
+	case "submit", "claim_win", "play_again":
 		h.playOrReject(c, msg)
 	default:
 		c.sendErr("VALIDATION", "unknown message type")

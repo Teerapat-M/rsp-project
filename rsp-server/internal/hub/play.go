@@ -95,8 +95,6 @@ func (h *Hub) playLocked(s *session, playerID string, msg ClientMessage) error {
 		return h.claimWinLocked(s, playerID)
 	case "play_again":
 		return h.playAgainLocked(s, playerID)
-	case "simulate":
-		return ErrPhase3
 	default:
 		return ErrPhase3
 	}

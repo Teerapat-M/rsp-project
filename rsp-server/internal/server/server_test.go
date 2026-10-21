@@ -371,7 +371,7 @@ func TestHealth(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body["phase"] != float64(4) {
+	if body["phase"] != float64(5) {
 		t.Fatalf("%v", body)
 	}
 }
@@ -444,4 +444,23 @@ func TestWSPlayRound(t *testing.T) {
 		t.Fatalf("result %+v", result)
 	}
 	_ = waitType(aliceWS, "match.finished", 5*time.Second)
+
+	res = doJSON(t, ts, http.MethodGet, "/stats", "alice", nil)
+	var st rooms.UserStats
+	decode(t, res, &st)
+	if st.Wins < 1 || st.MatchesPlayed < 1 {
+		t.Fatalf("stats after win %+v", st)
+	}
+	res = doJSON(t, ts, http.MethodGet, "/matches", "alice", nil)
+	var page rooms.HistoryPage
+	decode(t, res, &page)
+	if page.Total < 1 || len(page.Items) < 1 {
+		t.Fatalf("history %+v", page)
+	}
+	res = doJSON(t, ts, http.MethodGet, "/matches/"+page.Items[0].ID, "alice", nil)
+	var detail rooms.MatchDetail
+	decode(t, res, &detail)
+	if len(detail.Rounds) < 1 || detail.Rounds[0].You != "rock" {
+		t.Fatalf("detail %+v", detail)
+	}
 }

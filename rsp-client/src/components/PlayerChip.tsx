@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { isMock } from '../api'
 import type { User } from '../types'
 import { Avatar } from './Avatar'
 
@@ -23,31 +22,6 @@ export function PlayerChip({ user }: { user: User }) {
           <button type="button" onClick={() => { setOpen(false); nav('/history') }}>
             History
           </button>
-          {isMock() ? (
-            <>
-              <button type="button" onClick={() => { setOpen(false); nav('/demo') }}>
-                Screen gallery
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false)
-                  window.dispatchEvent(new CustomEvent('rsp-simulate', { detail: 'opponent_dc' }))
-                }}
-              >
-                Simulate opponent DC
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false)
-                  window.dispatchEvent(new CustomEvent('rsp-simulate', { detail: 'connection_lost' }))
-                }}
-              >
-                Simulate connection lost
-              </button>
-            </>
-          ) : null}
           <button
             type="button"
             onClick={async () => {

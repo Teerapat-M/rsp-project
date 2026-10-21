@@ -92,6 +92,7 @@ export type UserStats = {
   matchesPlayed: number
   wins: number
   losses: number
+  draws?: number
   winRate: number
   bestStreak: number
   picks: Record<PlayableMove, number>
@@ -162,7 +163,6 @@ export type WsClientEvent =
   | { type: 'claim_win' }
   | { type: 'play_again' }
   | { type: 'leave' }
-  | { type: 'simulate'; kind: 'opponent_dc' | 'connection_lost' | 'connection_restore' }
 
 export type WsConnection = {
   send: (event: WsClientEvent) => void
