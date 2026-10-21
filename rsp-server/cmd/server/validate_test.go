@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Teerapat-M/rsp-project/internal/auth"
+	"github.com/gin-gonic/gin"
 )
 
 func TestListenAddrPrefersHTTPAddrThenPORT(t *testing.T) {
@@ -19,6 +20,26 @@ func TestListenAddrPrefersHTTPAddrThenPORT(t *testing.T) {
 	}
 	if got := listenAddr("", ""); got != ":8080" {
 		t.Fatalf("default: %s", got)
+	}
+}
+
+func TestApplyGinModeProduction(t *testing.T) {
+	prev := gin.Mode()
+	t.Cleanup(func() { gin.SetMode(prev) })
+
+	gin.SetMode(gin.DebugMode)
+	applyGinMode("dev")
+	if gin.Mode() != gin.DebugMode {
+		t.Fatalf("dev left mode %s, want debug", gin.Mode())
+	}
+	applyGinMode("production")
+	if gin.Mode() != gin.ReleaseMode {
+		t.Fatalf("production mode %s, want release", gin.Mode())
+	}
+	gin.SetMode(gin.DebugMode)
+	applyGinMode("prod")
+	if gin.Mode() != gin.ReleaseMode {
+		t.Fatalf("prod alias mode %s, want release", gin.Mode())
 	}
 }
 

@@ -15,7 +15,7 @@ npm run dev
 
 Open http://localhost:5173. Leave `VITE_WS_URL` blank so the browser uses the same host. Set `VITE_GOOGLE_CLIENT_ID` (same value as `GOOGLE_CLIENT_ID` on the server) to show Continue with Gmail.
 
-Hosted (Vercel): set Root Directory to `rsp-client`. `vercel.json` rewrites SPA routes to `index.html`. Build-time env:
+Hosted (Vercel): set Root Directory to `rsp-client`. `vercel.json` rewrites SPA routes to `index.html`. When `VERCEL` is set, the build fails unless both URLs are absolute (`https://` and `wss://`); otherwise `/api` would 200 `index.html`. Local `npm run build` keeps the Vite proxy defaults. Build-time env:
 
 ```
 VITE_API_BASE=https://rsp-api.onrender.com

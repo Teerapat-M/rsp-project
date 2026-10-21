@@ -17,6 +17,7 @@ import (
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/Teerapat-M/rsp-project/internal/server"
 	"github.com/Teerapat-M/rsp-project/internal/sqlcdb"
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -115,6 +116,7 @@ func main() {
 	api.AuthLimit = limit
 	api.Ping = pool.Ping
 	api.TrustedProxies = server.ParseOrigins(os.Getenv("TRUSTED_PROXIES"))
+	applyGinMode(appEnv)
 	r := api.Router()
 
 	srv := &http.Server{Addr: addr, Handler: r, ReadHeaderTimeout: 5 * time.Second}
@@ -137,6 +139,12 @@ func main() {
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("shutdown: %v", err)
 		}
+	}
+}
+
+func applyGinMode(appEnv string) {
+	if isProduction(appEnv) {
+		gin.SetMode(gin.ReleaseMode)
 	}
 }
 
