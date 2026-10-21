@@ -533,6 +533,18 @@ a {
   margin: 10px 0;
 }
 
+.wakeBanner {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: #5b4a12;
+  background: #fff6d8;
+  border-bottom: 1px solid #e8d48a;
+}
+
 .scoreBar {
   width: min(1040px, 100%);
   margin: 8px auto 20px;

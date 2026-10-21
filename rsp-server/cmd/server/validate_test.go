@@ -7,6 +7,21 @@ import (
 	"github.com/Teerapat-M/rsp-project/internal/auth"
 )
 
+func TestListenAddrPrefersHTTPAddrThenPORT(t *testing.T) {
+	if got := listenAddr(":8080", "10000"); got != ":8080" {
+		t.Fatalf("HTTP_ADDR wins: %s", got)
+	}
+	if got := listenAddr("", "10000"); got != ":10000" {
+		t.Fatalf("Render PORT: %s", got)
+	}
+	if got := listenAddr("  ", ":9999"); got != ":9999" {
+		t.Fatalf("PORT with colon: %s", got)
+	}
+	if got := listenAddr("", ""); got != ":8080" {
+		t.Fatalf("default: %s", got)
+	}
+}
+
 func TestValidateBootDevAllowsDefaults(t *testing.T) {
 	if err := validateBoot("dev", "", "log", "", ""); err != nil {
 		t.Fatal(err)

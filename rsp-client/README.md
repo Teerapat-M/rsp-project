@@ -15,6 +15,16 @@ npm run dev
 
 Open http://localhost:5173. Leave `VITE_WS_URL` blank so the browser uses the same host. Set `VITE_GOOGLE_CLIENT_ID` (same value as `GOOGLE_CLIENT_ID` on the server) to show Continue with Gmail.
 
+Hosted (Vercel): set Root Directory to `rsp-client`. `vercel.json` rewrites SPA routes to `index.html`. Build-time env:
+
+```
+VITE_API_BASE=https://rsp-api.onrender.com
+VITE_WS_URL=wss://rsp-api.onrender.com/ws
+VITE_GOOGLE_CLIENT_ID=
+```
+
+No trailing slash on `VITE_API_BASE`. The Go server is not under `/api` when it is reached directly (Render). Local Vite still uses `/api` and strips it in the proxy.
+
 | Script | What |
 | --- | --- |
 | `npm run dev` | Vite dev server (port 5173), proxies `/api` and `/ws` to `:8080` |

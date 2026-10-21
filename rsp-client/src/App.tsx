@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { PageStatus } from './components/PageStatus'
+import { WakeBanner } from './components/WakeBanner'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { GameProvider } from './context/GameContext'
 import { SplashPage } from './pages/SplashPage'
@@ -31,6 +32,7 @@ export default function App() {
     <AuthProvider>
       <GameProvider>
         <BrowserRouter>
+          <WakeBanner />
           <Routes>
             <Route path="/" element={<SplashPage />} />
             <Route path="/login" element={<LoginPage />} />

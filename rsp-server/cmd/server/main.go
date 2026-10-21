@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 )
 
 func main() {
-	addr := getenv("HTTP_ADDR", ":8080")
+	addr := listenAddr(os.Getenv("HTTP_ADDR"), os.Getenv("PORT"))
 	appEnv := getenv("APP_ENV", "dev")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	emailProvider := getenv("EMAIL_PROVIDER", "log")
@@ -137,6 +138,20 @@ func main() {
 			log.Printf("shutdown: %v", err)
 		}
 	}
+}
+
+func listenAddr(httpAddr, port string) string {
+	if strings.TrimSpace(httpAddr) != "" {
+		return httpAddr
+	}
+	p := strings.TrimSpace(port)
+	if p == "" {
+		return ":8080"
+	}
+	if strings.HasPrefix(p, ":") {
+		return p
+	}
+	return ":" + p
 }
 
 func getenv(key, fallback string) string {

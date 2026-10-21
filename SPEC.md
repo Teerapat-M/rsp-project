@@ -205,3 +205,4 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] Auth POST rate limit, CORS/WS origin allowlist, DB password from env, `sslmode` documented
 - [x] Google sign-in does not auto-link an existing password email
 - [x] README deploy section lists every environment variable; `.env.example` has no real secrets
+- [x] Hosted path: Render Docker web service (`render.yaml`) + Vercel SPA (`rsp-client/vercel.json`) + Supabase Postgres (`sslmode=require`; migrate uses the direct connection)

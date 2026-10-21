@@ -1,0 +1,66 @@
+# Render Blueprint: Go API as a Docker web service (WebSockets).
+# Free web services sleep after idle; the client retries and shows
+# "Waking the server…". Dashboard: New → Blueprint, this repo.
+#
+# Secrets (JWT_SECRET, DATABASE_URL, mail keys, CORS_ORIGINS, …) are
+# sync: false — set them in the Render dashboard. Do not put real
+# secrets in this file.
+#
+# Postgres is Supabase, not Render. Use sslmode=require on DATABASE_URL.
+# See README "Deploy" for pooler vs direct (migrations).
+
+services:
+  - type: web
+    name: rsp-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./rsp-server/Dockerfile
+    dockerContext: ./rsp-server
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: RUN_MIGRATIONS
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_MIGRATE
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: EMAIL_PROVIDER
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: RATE_LIMIT_AUTH_PER_MIN
+        value: "20"
+      - key: TRUSTED_PROXIES
+        value: 0.0.0.0/0
+      - key: DISCONNECT_GRACE
+        value: 20s
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: REFRESH_TOKEN_TTL
+        value: 168h
+      - key: REFRESH_TOKEN_TTL_REMEMBER
+        value: 720h
+      - key: PASSWORD_RESET_TTL
+        value: 1h
+      - key: BCRYPT_COST
+        value: "12"

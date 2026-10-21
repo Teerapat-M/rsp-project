@@ -10,8 +10,10 @@ import type {
 } from '../types'
 import type { ApiClient, WsHandlers } from './client'
 import type { CreateRoomBody, GuestBody, LoginBody, RegisterBody } from './contract'
+import { WAKE_MAX_ATTEMPTS, isWakeHTTP, isWakeNetworkError, wakeDelayMs } from '../lib/wake'
+import { clearWake, noticeWake } from '../lib/wakeBus'
 
-const base = import.meta.env.VITE_API_BASE ?? '/api'
+const base = String(import.meta.env.VITE_API_BASE || '/api').replace(/\/$/, '')
 
 type ApiErr = Error & { code: string; passcode?: string }
 
@@ -56,30 +58,53 @@ async function refreshAccess(): Promise<boolean> {
   return true
 }
 
-async function req<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+async function req<T>(path: string, init?: RequestInit, retried = false, wakeAttempt = 0): Promise<T> {
   const token = localStorage.getItem('rsp.access')
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string> | undefined),
   }
   if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(`${base}${path}`, { ...init, headers })
+  let res: Response
+  try {
+    res = await fetch(`${base}${path}`, { ...init, headers })
+  } catch (err) {
+    if (wakeAttempt < WAKE_MAX_ATTEMPTS && isWakeNetworkError(err)) {
+      const next = wakeAttempt + 1
+      noticeWake(next)
+      await sleep(wakeDelayMs(next))
+      return req<T>(path, init, retried, next)
+    }
+    throw err
+  }
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { code?: string; message?: string; passcode?: string }
+    if (wakeAttempt < WAKE_MAX_ATTEMPTS && isWakeHTTP(res.status, body)) {
+      const next = wakeAttempt + 1
+      noticeWake(next)
+      await sleep(wakeDelayMs(next))
+      return req<T>(path, init, retried, next)
+    }
     if (res.status === 401 && !retried && !skipRefresh(path) && (await refreshAccess())) {
-      return req<T>(path, init, true)
+      return req<T>(path, init, true, wakeAttempt)
     }
     const err = new Error(body.message ?? res.statusText) as ApiErr
     err.code = body.code ?? 'HTTP'
     err.passcode = body.passcode
     throw err
   }
+  clearWake()
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }
 
 function wsURL(): string {
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
+  const raw = import.meta.env.VITE_WS_URL
+  if (raw && String(raw).trim()) return String(raw).replace(/\/$/, '')
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${proto}//${window.location.host}/ws`
 }
