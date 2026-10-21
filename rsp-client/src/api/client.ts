@@ -35,6 +35,7 @@ export type ApiClient = {
   leaveRoom: (roomId: string) => Promise<void>
   startGame: (roomId: string) => Promise<void>
   getRoom: (roomId: string) => Promise<Room>
+  getActiveRoom: () => Promise<Room | null>
   getStats: () => Promise<UserStats>
   getHistory: (cursor?: string) => Promise<HistoryPage>
   getMatch: (id: string) => Promise<MatchDetail>

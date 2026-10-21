@@ -11,7 +11,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
@@ -21,9 +21,12 @@ import { RoundResultPicks } from '../components/RoundResultPicks'
 import { Modal } from '../components/Modal'
 import { Timer } from '../components/Timer'
 import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
+import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
+import { playPath, readActiveRoom, resolvePlayRoom, writeActiveRoom } from '../lib/playRoom'
 import { opponentInRoom, youInRoom } from '../lib/profile'
+import { RECONNECT_MAX_ATTEMPTS, formatGrace } from '../lib/reconnect'
 import type { PlayableMove, RoundResultView } from '../types'
 
 export function GamePage() {
@@ -33,16 +36,78 @@ export function GamePage() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const roomQ = params.get('room')
+  const [serverId, setServerId] = useState<string | null>(null)
+  const [waitingId, setWaitingId] = useState<string | null>(null)
+  const [lookupDone, setLookupDone] = useState(Boolean(roomQ || game.room?.id))
 
   useEffect(() => {
-    if (roomQ) attach(roomQ)
-  }, [roomQ, attach])
+    if (roomQ || game.room?.id || !user) return
+    // Do not latch a "started" ref: StrictMode runs this effect, cleans it up
+    // (cancelled=true, response dropped), then runs it again on the same
+    // instance. A ref would skip the second run and leave Connecting forever.
+    let cancelled = false
+    ;(async () => {
+      try {
+        const active = await api.getActiveRoom()
+        if (cancelled) return
+        if (active?.id) {
+          writeActiveRoom(active.id, { userId: user.id })
+          if (active.status === 'waiting') {
+            setWaitingId(active.id)
+          } else {
+            setServerId(active.id)
+          }
+        } else {
+          writeActiveRoom(null, { userId: user.id })
+          setServerId(null)
+        }
+      } catch {
+        if (cancelled) return
+        setServerId(readActiveRoom({ userId: user.id }))
+      } finally {
+        if (!cancelled) setLookupDone(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [roomQ, game.room?.id, user])
+
+  const roomId = resolvePlayRoom({
+    query: roomQ,
+    stored: lookupDone ? serverId : null,
+    live: game.room?.id ?? null,
+  })
+
+  useEffect(() => {
+    if (!roomId) return
+    if (roomQ !== roomId) {
+      nav(playPath(roomId), { replace: true })
+      return
+    }
+    attach(roomQ)
+  }, [roomId, roomQ, attach, nav])
+
+  useEffect(() => {
+    if (!game.view && game.room?.status === 'waiting') {
+      nav(`/room/${game.room.id}`, { replace: true })
+    }
+  }, [game.view, game.room, nav])
 
   useEffect(() => {
     if (game.view?.finished && !game.roundResult) nav('/result')
   }, [game.view, game.roundResult, nav])
 
   if (!user) return null
+  if (waitingId) return <Navigate to={`/room/${waitingId}`} replace />
+  if (!roomId && !lookupDone) {
+    return (
+      <AppShell header={false}>
+        <p className="hint">Connecting…</p>
+      </AppShell>
+    )
+  }
+  if (!roomId) return <Navigate to="/lobby" replace />
   if (game.roundResult) return <RoundResult />
   if (!game.view && !game.room) {
     return (
@@ -93,8 +158,8 @@ function PlaySurface() {
         : placed
           ? 'Press Ready to lock in your pick'
           : over
-            ? 'Drag a card into the drop zone, then press Ready'
-            : 'Drag a card into the drop zone, then press Ready'
+            ? 'Drag or tap a card into the drop zone, then press Ready'
+            : 'Drag or tap a card into the drop zone, then press Ready'
 
   return (
     <AppShell header={false} wide>
@@ -144,6 +209,7 @@ function PlaySurface() {
                   disabled={locked || dc || timeup}
                   selected={false}
                   hidden={active === m}
+                  onPlace={() => game.submitMove(m)}
                 />
               )
             })}
@@ -185,10 +251,13 @@ function PlaySurface() {
         tone="danger"
         icon={<IconWifiOff />}
         title="Connection lost"
-        body="You're offline. Your match is paused and we'll keep trying to reconnect for 30 seconds."
+        body={`You're offline. Your match is paused; the server keeps your seat for ${formatGrace(game.reconnectGraceLeft)}.`}
         status={
           <>
-            <IconRefresh /> Reconnecting… attempt {game.reconnectAttempt} of 5 • 0:21
+            <IconRefresh />{' '}
+            {game.reconnectAttempt > RECONNECT_MAX_ATTEMPTS
+              ? 'Could not reconnect'
+              : `Reconnecting… attempt ${Math.max(1, game.reconnectAttempt)} of ${RECONNECT_MAX_ATTEMPTS} • ${formatGrace(game.reconnectGraceLeft)}`}
           </>
         }
         primaryLabel="Retry now"
@@ -284,11 +353,13 @@ function DraggableCard({
   disabled,
   selected,
   hidden,
+  onPlace,
 }: {
   move: PlayableMove
   disabled: boolean
   selected: boolean
   hidden: boolean
+  onPlace: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: move,
@@ -303,6 +374,13 @@ function DraggableCard({
         ghost={hidden || isDragging}
         listeners={disabled ? undefined : listeners}
         attributes={attributes}
+        onClick={
+          disabled
+            ? undefined
+            : () => {
+                if (!isDragging) onPlace()
+              }
+        }
       />
     </div>
   )

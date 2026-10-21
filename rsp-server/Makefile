@@ -39,8 +39,10 @@ down:
 migrate-up: check-migrations
 	migrate -path $(MIGRATE_PATH) -database "$(DATABASE_URL)" up
 
+# `down` without a count prompts for confirmation (breaks cmd.exe).
+# Repeat this target to roll back more than one version.
 migrate-down:
-	migrate -path $(MIGRATE_PATH) -database "$(DATABASE_URL)" down
+	migrate -path $(MIGRATE_PATH) -database "$(DATABASE_URL)" down 1
 
 tidy:
 	go mod tidy

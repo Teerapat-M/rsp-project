@@ -142,6 +142,7 @@ type session struct {
 	resultStop  func() bool
 	playAgain   map[string]bool
 	clockRound  int
+	seq         int64
 }
 
 func (h *Hub) Create(ctx context.Context, host ident.Player, wins, seconds int) (rooms.Room, error) {
@@ -221,7 +222,7 @@ func (h *Hub) Join(ctx context.Context, player ident.Player, rawCode string) (ro
 			return rooms.Room{}, err
 		}
 		s.members = append(s.members, &member{player: player, conns: make(map[*client]struct{})})
-		snap := s.snapshotLocked()
+		snap := s.publishLocked()
 		s.broadcastLocked(event{"type": "player.joined", "player": snap.Players[len(snap.Players)-1]})
 		s.broadcastLocked(event{"type": "room.updated", "room": snap})
 		return snap, nil
@@ -266,7 +267,7 @@ func (h *Hub) Leave(ctx context.Context, roomID, playerID string) (rooms.Room, e
 			log.Printf("hub: close room: %v", err)
 		}
 	}
-	snap := s.snapshotLocked()
+	snap := s.publishLocked()
 	s.broadcastLocked(event{"type": "player.left", "playerId": playerID})
 	s.broadcastLocked(event{"type": "room.updated", "room": snap})
 	if empty {
@@ -306,22 +307,63 @@ func (h *Hub) SetLobbyReady(roomID, playerID string, ready bool) (rooms.Room, er
 		return rooms.Room{}, rooms.ErrNotInRoom
 	}
 	m.ready = ready
-	snap := s.snapshotLocked()
 	n := 0
 	for _, mem := range s.members {
 		if mem.ready {
 			n++
 		}
 	}
+	snap := s.publishLocked()
+	// Snapshot first, then lobby.ready with the same seq. A client that
+	// patches from lobby.ready cannot be clobbered by an older snapshot:
+	// seq on room.updated drops frames from a previous socket after reconnect,
+	// and the patch is ignored when seq is stale. Both players clicking Ready
+	// are serialized on s.mu, so the last publish is always 2/2.
+	s.broadcastLocked(event{"type": "room.updated", "room": snap})
 	s.broadcastLocked(event{
 		"type":        "lobby.ready",
 		"playerId":    playerID,
 		"ready":       n,
 		"need":        rooms.MaxPlayers,
 		"playerReady": ready,
+		"seq":         snap.Seq,
 	})
-	s.broadcastLocked(event{"type": "room.updated", "room": snap})
 	return snap, nil
+}
+
+// ActiveRoomFor is the live waiting/playing room this player is seated in.
+func (h *Hub) ActiveRoomFor(playerID string) (rooms.Room, error) {
+	h.mu.Lock()
+	sessions := make([]*session, 0, len(h.rooms))
+	for _, s := range h.rooms {
+		sessions = append(sessions, s)
+	}
+	h.mu.Unlock()
+
+	var waiting rooms.Room
+	foundWaiting := false
+	for _, s := range sessions {
+		s.mu.Lock()
+		_, ok := s.findLocked(playerID)
+		st := s.status
+		var snap rooms.Room
+		if ok && st != rooms.StatusClosed {
+			snap = s.snapshotLocked()
+		}
+		s.mu.Unlock()
+		if !ok || st == rooms.StatusClosed {
+			continue
+		}
+		if st == rooms.StatusPlaying {
+			return snap, nil
+		}
+		waiting = snap
+		foundWaiting = true
+	}
+	if foundWaiting {
+		return waiting, nil
+	}
+	return rooms.Room{}, rooms.ErrNotFound
 }
 
 func (h *Hub) LiveCount() int {
@@ -507,7 +549,16 @@ func (s *session) snapshotLocked() rooms.Room {
 		TurnSeconds:  s.seconds,
 		Status:       s.status,
 		Players:      ps,
+		Seq:          s.seq,
 	}
+}
+
+// publishLocked bumps seq and returns the snapshot to broadcast.
+// GET / rooms / ActiveRoomFor must not call this: a read that advances seq
+// would make in-flight room.updated frames look stale on the client.
+func (s *session) publishLocked() rooms.Room {
+	s.seq++
+	return s.snapshotLocked()
 }
 
 type event map[string]any
@@ -565,7 +616,7 @@ func (h *Hub) attach(s *session, player ident.Player, conn *websocket.Conn) *cli
 		m.graceStop = nil
 	}
 	m.conns[c] = struct{}{}
-	snap := s.snapshotLocked()
+	snap := s.publishLocked()
 	s.broadcastLocked(event{
 		"type":             "presence",
 		"playerId":         player.ID,
@@ -623,7 +674,7 @@ func (h *Hub) detach(c *client) {
 		"reconnectSeconds": int(grace / time.Second),
 	})
 	s.broadcastLocked(event{"type": "player.disconnected", "playerId": playerID, "reconnectSeconds": int(grace / time.Second)})
-	s.broadcastLocked(event{"type": "room.updated", "room": s.snapshotLocked()})
+	s.broadcastLocked(event{"type": "room.updated", "room": s.publishLocked()})
 	playing := s.match != nil && s.match.Status() == game.StatusPlaying
 	if playing {
 		s.paused = true
@@ -634,8 +685,19 @@ func (h *Hub) detach(c *client) {
 		m.graceStop()
 	}
 	m.graceStop = h.after(grace, func() {
-		if playing {
+		s := h.get(roomID)
+		if s == nil {
+			return
+		}
+		s.mu.Lock()
+		stillPlaying := s.match != nil && s.match.Status() == game.StatusPlaying
+		keepSeat := s.match != nil && s.match.Status() == game.StatusFinished
+		s.mu.Unlock()
+		if stillPlaying {
 			h.forfeit(roomID, playerID)
+			return
+		}
+		if keepSeat {
 			return
 		}
 		if _, err := h.Leave(context.Background(), roomID, playerID); err != nil {

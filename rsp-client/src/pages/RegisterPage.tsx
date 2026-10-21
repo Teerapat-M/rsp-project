@@ -39,7 +39,15 @@ export function RegisterPage() {
         </p>
         <form className="authForm" onSubmit={onSubmit}>
           <Input icon={<IconUser />} placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
-          <Input icon={<IconLock />} placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            icon={<IconLock />}
+            placeholder="Password (min 8 characters)"
+            type="password"
+            minLength={8}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <Input icon={<IconMail />} placeholder="Email (optional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           {error ? <div className="hint" style={{ color: '#dc2626' }}>{error}</div> : null}
           <Button type="submit" block>

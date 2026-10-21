@@ -76,6 +76,7 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request, roomID string, pla
 	}
 
 	up := h.upgrader()
+	up.Subprotocols = websocket.Subprotocols(r)
 	conn, err := up.Upgrade(w, r, nil)
 	if err != nil {
 		return

@@ -67,7 +67,7 @@ func (h *Hub) beginMatchLocked(s *session, playerID string, rematch bool) error 
 		mem.ready = false
 	}
 
-	s.broadcastLocked(event{"type": "room.updated", "room": s.snapshotLocked()})
+	s.broadcastLocked(event{"type": "room.updated", "room": s.publishLocked()})
 	h.sendViewsLocked(s, "match.started")
 	h.startClockLocked(s)
 	return nil
@@ -215,6 +215,7 @@ func (h *Hub) onResolvedLocked(s *session, rr *game.ResolvedRound) {
 	if s.resultStop != nil {
 		s.resultStop()
 	}
+	matchID := s.matchID
 	s.resultStop = h.after(h.resultPause, func() {
 		s := h.get(roomID)
 		if s == nil {
@@ -222,11 +223,14 @@ func (h *Hub) onResolvedLocked(s *session, rr *game.ResolvedRound) {
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if s.match == nil {
+		if s.match == nil || s.matchID != matchID {
 			return
 		}
+		s.resultStop = nil
 		if over {
-			h.sendViewsLocked(s, "match.finished")
+			if s.match.Status() == game.StatusFinished {
+				h.sendViewsLocked(s, "match.finished")
+			}
 			return
 		}
 		// Guard: if a later round already started (or the match ended), skip.

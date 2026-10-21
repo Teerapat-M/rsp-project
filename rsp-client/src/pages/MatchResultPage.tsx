@@ -6,6 +6,7 @@ import { IconTrophy } from '../components/Icons'
 import { useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
+import { playPath } from '../lib/playRoom'
 import { youInRoom } from '../lib/profile'
 import { useNavigate } from 'react-router-dom'
 import type { PlayableMove } from '../types'
@@ -16,7 +17,7 @@ export function MatchResultPage() {
   const nav = useNavigate()
 
   useEffect(() => {
-    if (view && !view.finished) nav('/play')
+    if (view && !view.finished) nav(playPath(view.roomId), { replace: true })
   }, [view, nav])
   if (!user || !view) {
     return (
