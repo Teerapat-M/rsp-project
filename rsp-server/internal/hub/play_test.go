@@ -559,6 +559,139 @@ func playHubPick(t *testing.T, clk *fakeClock, pick game.Pick) (*Hub, *rooms.Mem
 	return h, st
 }
 
+func TestRoundStartedAfterResultPause(t *testing.T) {
+	t.Parallel()
+	clk := &fakeClock{}
+	h, _ := playHub(t, clk)
+	room, host, guest, aliceC, bobC := twoSeated(t, h)
+	if err := h.StartMatch(room.ID, host.ID); err != nil {
+		t.Fatal(err)
+	}
+	drain(aliceC)
+	drain(bobC)
+
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "submit", Move: "rock"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "submit", Move: "rock"})
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "ready"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "ready"})
+
+	aliceMsgs := drain(aliceC)
+	if lastType(aliceMsgs, "round.resolved") == nil {
+		t.Fatalf("want round.resolved, got %+v", aliceMsgs)
+	}
+	if lastType(aliceMsgs, "round.started") != nil {
+		t.Fatal("round.started must wait for the result pause")
+	}
+
+	if n := clk.Fire(3 * time.Second); n < 1 {
+		t.Fatalf("pause jobs=%d", n)
+	}
+	aliceMsgs = drain(aliceC)
+	bobMsgs := drain(bobC)
+	as := lastType(aliceMsgs, "round.started")
+	bs := lastType(bobMsgs, "round.started")
+	if as == nil || bs == nil {
+		t.Fatalf("want round.started alice=%v bob=%v", as, bs)
+	}
+	av := viewOf(as)
+	if av["roundNumber"] != float64(2) {
+		t.Fatalf("next round view %+v", av)
+	}
+	if av["remainingSeconds"] != float64(5) {
+		t.Fatalf("turn clock should reset, view %+v", av)
+	}
+	if lastType(aliceMsgs, "match.finished") != nil {
+		t.Fatal("a draw of first-to-2 must not finish the match")
+	}
+
+	s := h.get(room.ID)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.match.Status() != game.StatusPlaying || s.match.RoundNumber() != 2 {
+		t.Fatalf("status=%s round=%d", s.match.Status(), s.match.RoundNumber())
+	}
+}
+
+func TestRoomAndMatchViewUseProfileAvatars(t *testing.T) {
+	t.Parallel()
+	clk := &fakeClock{}
+	h, _ := playHub(t, clk)
+	ctx := context.Background()
+	host := ident.Player{
+		ID:          "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		DisplayName: "Host",
+		Avatar:      "paper",
+		Color:       "#93BFE3",
+	}
+	guest := ident.Player{
+		ID:          "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+		DisplayName: "Guest",
+		Avatar:      "scissors",
+		Color:       "#A897C8",
+	}
+	room, err := h.Create(ctx, host, 1, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(room.Players) != 1 || room.Players[0].Avatar != "paper" || room.Players[0].Color != "#93BFE3" {
+		t.Fatalf("create snapshot %+v", room.Players)
+	}
+
+	joined, err := h.Join(ctx, guest, room.Passcode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostSeat, guestSeat := playerByID(joined.Players, host.ID), playerByID(joined.Players, guest.ID)
+	if hostSeat.Avatar != "paper" || hostSeat.Color != "#93BFE3" {
+		t.Fatalf("host after join %+v", hostSeat)
+	}
+	if guestSeat.Avatar != "scissors" || guestSeat.Color != "#A897C8" {
+		t.Fatalf("guest after join %+v", guestSeat)
+	}
+
+	got, err := h.Get(ctx, room.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if playerByID(got.Players, guest.ID).Avatar != "scissors" {
+		t.Fatalf("GET snapshot %+v", got.Players)
+	}
+
+	s := h.get(room.ID)
+	aliceC := seat(h, s, host)
+	bobC := seat(h, s, guest)
+	if err := h.StartMatch(room.ID, host.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	av := viewOf(lastType(drain(aliceC), "match.started"))
+	you, _ := av["you"].(map[string]any)
+	if you["avatar"] != "paper" || you["color"] != "#93BFE3" {
+		t.Fatalf("alice you %+v", you)
+	}
+	if av["opponentAvatar"] != "scissors" || av["opponentColor"] != "#A897C8" {
+		t.Fatalf("alice opponent %+v", av)
+	}
+
+	bv := viewOf(lastType(drain(bobC), "match.started"))
+	youB, _ := bv["you"].(map[string]any)
+	if youB["avatar"] != "scissors" || youB["color"] != "#A897C8" {
+		t.Fatalf("bob you %+v", youB)
+	}
+	if bv["opponentAvatar"] != "paper" || bv["opponentColor"] != "#93BFE3" {
+		t.Fatalf("bob opponent %+v", bv)
+	}
+}
+
+func playerByID(ps []rooms.Player, id string) rooms.Player {
+	for _, p := range ps {
+		if p.ID == id {
+			return p
+		}
+	}
+	return rooms.Player{}
+}
+
 func TestLateSocketGetsMatchStarted(t *testing.T) {
 	t.Parallel()
 	clk := &fakeClock{}

@@ -27,8 +27,9 @@ On connect the server sends `room.updated` (and `presence` if anyone else is wat
 | `lobby.ready` | Waiting-room ready flag | `{ "playerId", "playerReady", "ready", "need" }` |
 | `match.started` | Host started, or both players chose Play Again | `{ "view": PlayerView }` — **per player** (hidden opponent move) |
 | `tick` | Once a second during a turn | `{ "remainingSeconds": n }` |
-| `view` | After submit / one-sided ready / reconnect / next round | `{ "view": PlayerView }` |
+| `view` | After submit / one-sided ready / reconnect | `{ "view": PlayerView }` |
 | `round.resolved` | Both Ready, or the turn timer fired | `{ "result": RoundResultView, "view": PlayerView }` — **per player** |
+| `round.started` | Result pause ended; next turn clock is live | `{ "view": PlayerView }` — **per player**. Clients leave the round-result overlay. |
 | `match.finished` | Someone reached `winsToFinish`, or a forfeit | `{ "view": PlayerView }` after the result pause |
 | `opponent.disconnected` | Opponent's last socket dropped **during a match** | `{ "view": PlayerView }` (`opponentDisconnected`, `reconnectSeconds`) |
 | `opponent.reconnected` | They returned before grace | `{ "view": PlayerView }` |
@@ -36,9 +37,9 @@ On connect the server sends `room.updated` (and `presence` if anyone else is wat
 | `pong` | Reply to `ping` | `{}` |
 | `error` | Bad client message | `{ "code", "message" }` |
 
-`Room` / `RoomPlayer` match `rsp-client/src/types.ts` (camelCase) plus `ready` and `connected` on each player.
+`Room` / `RoomPlayer` match `rsp-client/src/types.ts` (camelCase) plus `ready` and `connected` on each player. Each `RoomPlayer` includes that user's `users.avatar` / `users.color` (the profile picture from guest picker / `user_profile`), not the throw they played.
 
-`PlayerView` / `RoundResultView` match the same file. `yourMove` is this player's card (or `""`). The opponent's current card is omitted until `round.resolved`. History on the view reveals both moves for **completed** rounds only.
+`PlayerView` / `RoundResultView` match the same file. `yourMove` is this player's card (or `""`). The opponent's current card is omitted until `round.resolved`. History on the view reveals both moves for **completed** rounds only. `view.you.avatar` and `opponentAvatar` are the same profile pictures as the room snapshot.
 
 `connection.lost` / `connection.restored` are client-local (the browser's socket). The server never sends them.
 
@@ -71,7 +72,7 @@ The server owns the clock. Each round lasts `turnSeconds` (the room setting). `t
 - No move → the server picks rock, paper, or scissors at random (`yourAutoPicked` / `opponentAutoPicked` on `round.resolved`, `autoPicked` on history). The round then resolves with the usual cycle.
 - The timeout closure captures `roundNo`. A late timer from round N cannot resolve round N+1 (`ErrStaleRound`).
 
-After `round.resolved` there is a 3s pause (`nextRoundIn`) so the UI can show the result, then either the next `tick` or `match.finished`.
+After `round.resolved` there is a 3s pause (`nextRoundIn`) so the UI can show the result. Then the hub either broadcasts `round.started` (fresh `remainingSeconds`, turn clock running) or `match.finished`. Both players advance on that event so they stay in sync. Clients may also count down locally and dismiss the overlay if the event is late.
 
 ## Persistence
 
