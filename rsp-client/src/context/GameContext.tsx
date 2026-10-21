@@ -8,7 +8,7 @@ import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } fr
 
 type JoinError = { code: 'WRONG_PASSCODE' | 'ROOM_FULL'; passcode: string; message: string } | null
 
-type GameCtx = {
+export type GameCtx = {
   room: Room | null
   view: PlayerView | null
   remaining: number | null

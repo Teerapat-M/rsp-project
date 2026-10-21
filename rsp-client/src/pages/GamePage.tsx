@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -39,11 +39,12 @@ export function GamePage() {
   const [serverId, setServerId] = useState<string | null>(null)
   const [waitingId, setWaitingId] = useState<string | null>(null)
   const [lookupDone, setLookupDone] = useState(Boolean(roomQ || game.room?.id))
-  const lookupStarted = useRef(false)
 
   useEffect(() => {
-    if (roomQ || game.room?.id || !user || lookupStarted.current) return
-    lookupStarted.current = true
+    if (roomQ || game.room?.id || !user) return
+    // Do not latch a "started" ref: StrictMode runs this effect, cleans it up
+    // (cancelled=true, response dropped), then runs it again on the same
+    // instance. A ref would skip the second run and leave Connecting forever.
     let cancelled = false
     ;(async () => {
       try {
@@ -61,7 +62,8 @@ export function GamePage() {
           setServerId(null)
         }
       } catch {
-        if (!cancelled) setServerId(readActiveRoom({ userId: user.id }))
+        if (cancelled) return
+        setServerId(readActiveRoom({ userId: user.id }))
       } finally {
         if (!cancelled) setLookupDone(true)
       }
