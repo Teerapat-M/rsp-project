@@ -17,10 +17,11 @@ import { HistoryPage } from './pages/HistoryPage'
 import { MatchDetailPage } from './pages/MatchDetailPage'
 import type { ReactNode } from 'react'
 
-function Gate({ children }: { children: ReactNode }) {
+function Gate({ children, registered }: { children: ReactNode; registered?: boolean }) {
   const { user, ready } = useAuth()
   if (!ready) return null
   if (!user) return <Navigate to="/login" replace />
+  if (registered && user.isGuest) return <Navigate to="/register" replace />
   return children
 }
 
@@ -79,7 +80,7 @@ export default function App() {
             <Route
               path="/stats"
               element={
-                <Gate>
+                <Gate registered>
                   <StatsPage />
                 </Gate>
               }
@@ -87,7 +88,7 @@ export default function App() {
             <Route
               path="/history"
               element={
-                <Gate>
+                <Gate registered>
                   <HistoryPage />
                 </Gate>
               }
@@ -95,7 +96,7 @@ export default function App() {
             <Route
               path="/history/:id"
               element={
-                <Gate>
+                <Gate registered>
                   <MatchDetailPage />
                 </Gate>
               }

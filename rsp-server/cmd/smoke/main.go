@@ -61,6 +61,7 @@ func playSubmittedMatch(base, wsBase string) {
 		log.Fatalf("want A to win, view=%v", view)
 	}
 
+	a = upgrade(base, a, "sma")
 	stats := getJSON(base+"/stats", a.Access)
 	if n, _ := stats["wins"].(float64); n < 1 {
 		log.Fatalf("stats wins=%v", stats["wins"])
@@ -107,6 +108,7 @@ func playTimeoutRound(base, wsBase string) {
 	}
 	waitType(wa, "match.finished")
 
+	a = upgrade(base, a, "smb")
 	hist := getJSON(base+"/matches", a.Access)
 	items, _ := hist["items"].([]any)
 	if len(items) < 1 {
@@ -151,6 +153,19 @@ type session struct {
 func guest(base, name string) session {
 	raw := postJSON(base+"/auth/guest", "", map[string]string{"displayName": name, "avatar": "rock", "color": "#9DB89A"})
 	user, _ := raw["user"].(map[string]any)
+	return session{Access: str(raw["accessToken"]), ID: str(user["id"])}
+}
+
+func upgrade(base string, s session, tag string) session {
+	name := fmt.Sprintf("%s%d", tag, time.Now().UnixNano()%1e8)
+	raw := postJSON(base+"/auth/upgrade", s.Access, map[string]string{
+		"username": name,
+		"password": "secret1",
+	})
+	user, _ := raw["user"].(map[string]any)
+	if user["isGuest"] == true {
+		log.Fatalf("upgrade still guest: %v", raw)
+	}
 	return session{Access: str(raw["accessToken"]), ID: str(user["id"])}
 }
 

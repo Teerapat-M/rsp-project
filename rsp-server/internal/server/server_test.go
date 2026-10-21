@@ -42,6 +42,16 @@ func newTestAPI(t *testing.T) *httptest.Server {
 
 func doJSON(t *testing.T, ts *httptest.Server, method, path, player string, body any) *http.Response {
 	t.Helper()
+	return doRequest(t, ts, method, path, player, "", body)
+}
+
+func doBearer(t *testing.T, ts *httptest.Server, method, path, token string, body any) *http.Response {
+	t.Helper()
+	return doRequest(t, ts, method, path, "", token, body)
+}
+
+func doRequest(t *testing.T, ts *httptest.Server, method, path, player, token string, body any) *http.Response {
+	t.Helper()
 	var rdr io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -55,7 +65,9 @@ func doJSON(t *testing.T, ts *httptest.Server, method, path, player string, body
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if player != "" {
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	} else if player != "" {
 		req.Header.Set("X-Player-ID", player)
 		req.Header.Set("X-Player-Name", player)
 	}
@@ -64,6 +76,26 @@ func doJSON(t *testing.T, ts *httptest.Server, method, path, player string, body
 		t.Fatal(err)
 	}
 	return res
+}
+
+func registerUser(t *testing.T, ts *httptest.Server, username string) string {
+	t.Helper()
+	res, err := http.Post(ts.URL+"/auth/register", "application/json",
+		bytes.NewBufferString(`{"username":"`+username+`","password":"secret1"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sess struct {
+		AccessToken string `json:"accessToken"`
+		User        struct {
+			IsGuest bool `json:"isGuest"`
+		} `json:"user"`
+	}
+	decode(t, res, &sess)
+	if res.StatusCode != http.StatusCreated || sess.AccessToken == "" || sess.User.IsGuest {
+		t.Fatalf("register %s: %d %+v", username, res.StatusCode, sess)
+	}
+	return sess.AccessToken
 }
 
 func decode(t *testing.T, res *http.Response, dest any) {
@@ -446,6 +478,33 @@ func TestWSPlayRound(t *testing.T) {
 	_ = waitType(aliceWS, "match.finished", 5*time.Second)
 
 	res = doJSON(t, ts, http.MethodGet, "/stats", "alice", nil)
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("guest stats %d", res.StatusCode)
+	}
+	var errBody apiError
+	decode(t, res, &errBody)
+	if errBody.Code != "FORBIDDEN" {
+		t.Fatalf("guest stats body %+v", errBody)
+	}
+	res = doJSON(t, ts, http.MethodGet, "/matches", "alice", nil)
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("guest history %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+
+	res = doJSON(t, ts, http.MethodPost, "/auth/upgrade", "alice", map[string]string{
+		"username": "alice_ok",
+		"password": "secret1",
+	})
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("upgrade %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+
+	res = doJSON(t, ts, http.MethodGet, "/stats", "alice", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("stats after upgrade %d", res.StatusCode)
+	}
 	var st rooms.UserStats
 	decode(t, res, &st)
 	if st.Wins < 1 || st.MatchesPlayed < 1 {

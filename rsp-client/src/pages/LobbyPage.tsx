@@ -5,11 +5,13 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
 import { IconAlert, IconHistory, IconKey, IconStats, IconUserX } from '../components/Icons'
+import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import { formatPasscode, onlyDigits } from '../lib/format'
 
 export function LobbyPage() {
   const nav = useNavigate()
+  const { user } = useAuth()
   const { joinRoom, joinError, clearJoinError } = useGame()
   const [code, setCode] = useState('')
 
@@ -48,12 +50,20 @@ export function LobbyPage() {
           </form>
         </div>
         <div className="lobbyLinks">
-          <Button variant="ghost" to="/stats">
-            <IconStats /> Stats
-          </Button>
-          <Button variant="ghost" to="/history">
-            <IconHistory /> History
-          </Button>
+          {user?.isGuest ? (
+            <Button variant="ghost" to="/register">
+              Create account
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" to="/stats">
+                <IconStats /> Stats
+              </Button>
+              <Button variant="ghost" to="/history">
+                <IconHistory /> History
+              </Button>
+            </>
+          )}
         </div>
       </div>
       <Modal
