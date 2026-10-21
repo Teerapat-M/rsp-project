@@ -167,7 +167,7 @@ Hosted target: **Go API on Render** (Docker web service, WebSockets), **React on
    - Render injects `PORT`; the process listens on `:$PORT` when `HTTP_ADDR` is empty. `TRUSTED_PROXIES=0.0.0.0/0` so rate limits key on the browser behind Render.
    - Copy the `*.onrender.com` URL (REST is at the root, not `/api`).
 3. **Vercel** — Import the repo, **Root Directory `rsp-client`**. [`rsp-client/vercel.json`](rsp-client/vercel.json) rewrites SPA routes to `index.html`.
-   - Build env: `VITE_API_BASE=https://<rsp-api>.onrender.com` (no trailing slash, no `/api` prefix), `VITE_WS_URL=wss://<rsp-api>.onrender.com/ws`, optional `VITE_GOOGLE_CLIENT_ID`.
+   - Build env: `VITE_API_BASE=https://<rsp-api>.onrender.com` (no trailing slash, no `/api` prefix), `VITE_WS_URL=wss://<rsp-api>.onrender.com/ws`, optional `VITE_GOOGLE_CLIENT_ID`. The Vercel build (`VERCEL=1`) **fails** if either URL is missing or not absolute `https://` / `wss://` — a relative `/api` would 200 `index.html` from the SPA rewrite. Local `npm run build` does not require them.
    - Production origin e.g. `https://<app>.vercel.app` must be listed in Render `CORS_ORIGINS` (REST CORS **and** WebSocket `CheckOrigin`).
 4. Confirm: `GET https://<rsp-api>.onrender.com/health` → `{"status":"ok","phase":6}`. `GET /ready` pings Postgres. Open the Vercel URL, wait out a cold start if needed, create a room.
 

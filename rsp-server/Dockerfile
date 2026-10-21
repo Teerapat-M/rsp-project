@@ -15,7 +15,9 @@ COPY --from=build /out/server /server
 COPY --from=migrate /usr/local/bin/migrate /usr/local/bin/migrate
 COPY db/migrations /migrations
 COPY docker-entrypoint.sh /entrypoint.sh
-RUN chmod 755 /entrypoint.sh /usr/local/bin/migrate
+# Strip CR so a Windows CRLF checkout still has a valid shebang (see .gitattributes).
+RUN sed -i 's/\r$//' /entrypoint.sh \
+	&& chmod 755 /entrypoint.sh /usr/local/bin/migrate
 USER 65532
 EXPOSE 8080
 ENV RUN_MIGRATIONS=1
