@@ -9,6 +9,7 @@ import { useGame } from '../context/GameContext'
 export function CreateRoomPage() {
   const [wins, setWins] = useState(3)
   const [seconds, setSeconds] = useState(15)
+  const [error, setError] = useState('')
   const { createRoom } = useGame()
   const nav = useNavigate()
 
@@ -41,11 +42,17 @@ export function CreateRoomPage() {
               </button>
             ))}
           </div>
+          {error ? <p className="hint" style={{ color: '#dc2626' }}>{error}</p> : null}
           <Button
             block
             onClick={async () => {
-              const room = await createRoom(wins, seconds)
-              nav(`/room/${room.id}`)
+              setError('')
+              try {
+                const room = await createRoom(wins, seconds)
+                nav(`/room/${room.id}`)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not create room')
+              }
             }}
           >
             Create Room

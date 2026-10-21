@@ -27,6 +27,8 @@ export type RoomPlayer = {
   color: string
   isHost: boolean
   joined: boolean
+  ready?: boolean
+  connected?: boolean
 }
 
 export type Room = {
@@ -37,6 +39,7 @@ export type Room = {
   turnSeconds: number
   status: RoomStatus
   players: RoomPlayer[]
+  seq?: number
 }
 
 export type MatchStatus = 'playing' | 'finished'
@@ -147,6 +150,7 @@ export type ApiError = {
 
 export type WsEvent =
   | { type: 'room.updated'; room: Room }
+  | { type: 'lobby.ready'; playerId: string; playerReady: boolean; ready: number; need: number; seq?: number }
   | { type: 'match.started'; view: PlayerView }
   | { type: 'tick'; remainingSeconds: number }
   | { type: 'view'; view: PlayerView }
@@ -162,6 +166,8 @@ export type WsEvent =
 export type WsClientEvent =
   | { type: 'submit'; move: PlayableMove }
   | { type: 'ready' }
+  | { type: 'lobby.ready' }
+  | { type: 'lobby.unready' }
   | { type: 'claim_win' }
   | { type: 'play_again' }
   | { type: 'leave' }

@@ -6,17 +6,34 @@ import { Hand, HAND_FILL } from '../components/Hand'
 import { IconCircleX, IconFlame, IconPercent, IconTrophy } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../api'
+import { PageStatus } from '../components/PageStatus'
 import type { UserStats } from '../types'
 
 export function StatsPage() {
   const { user } = useAuth()
   const [stats, setStats] = useState<UserStats | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    api.getStats().then(setStats)
+    api
+      .getStats()
+      .then(setStats)
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load stats'))
   }, [])
 
-  if (!user || !stats) return <AppShell />
+  if (error) return <PageStatus>{error}</PageStatus>
+  if (!user || !stats) return <PageStatus>Loading stats…</PageStatus>
+  if (stats.matchesPlayed === 0) {
+    return (
+      <AppShell>
+        <div className="pageCenter">
+          <h1 className="heroTitle">No matches yet</h1>
+          <p className="heroSub">Play a game, then your stats will show up here.</p>
+          <Button to="/lobby">← Back to lobby</Button>
+        </div>
+      </AppShell>
+    )
+  }
   const totalPicks = stats.picks.rock + stats.picks.paper + stats.picks.scissors || 1
   const kinds: Array<'rock' | 'paper' | 'scissors'> = ['scissors', 'rock', 'paper']
   const most = kinds.reduce((a, b) => (stats.picks[b] > stats.picks[a] ? b : a))

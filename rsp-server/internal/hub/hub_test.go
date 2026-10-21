@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -323,4 +324,249 @@ func TestReconnectCancelsGrace(t *testing.T) {
 	if len(got.Players) != 2 {
 		t.Fatalf("players=%d", len(got.Players))
 	}
+}
+
+func TestGetDoesNotAdvanceSeq(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	h, _ := testHub(t, time.Second)
+	host := player("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Host")
+	guest := player("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Guest")
+	room, err := h.Create(ctx, host, 3, 15)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Join(ctx, guest, room.Passcode); err != nil {
+		t.Fatal(err)
+	}
+	a, err := h.Get(ctx, room.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := h.Get(ctx, room.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Seq != b.Seq {
+		t.Fatalf("GET bumped seq %d -> %d", a.Seq, b.Seq)
+	}
+	ready, err := h.SetLobbyReady(room.ID, host.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ready.Seq <= a.Seq {
+		t.Fatalf("ready seq %d want > %d", ready.Seq, a.Seq)
+	}
+	c, err := h.Get(ctx, room.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Seq != ready.Seq {
+		t.Fatalf("GET after ready seq=%d want %d", c.Seq, ready.Seq)
+	}
+}
+
+func TestActiveRoomFor(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	h, _ := testHub(t, time.Second)
+	host := player("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Host")
+	guest := player("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Guest")
+
+	if _, err := h.ActiveRoomFor(host.ID); !errors.Is(err, rooms.ErrNotFound) {
+		t.Fatalf("empty: %v", err)
+	}
+
+	room, err := h.Create(ctx, host, 3, 15)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := h.ActiveRoomFor(host.ID)
+	if err != nil || got.ID != room.ID || got.Status != rooms.StatusWaiting {
+		t.Fatalf("waiting: %+v %v", got, err)
+	}
+	if _, err := h.Join(ctx, guest, room.Passcode); err != nil {
+		t.Fatal(err)
+	}
+	g, err := h.ActiveRoomFor(guest.ID)
+	if err != nil || g.ID != room.ID {
+		t.Fatalf("guest: %+v %v", g, err)
+	}
+	if _, err := h.Leave(ctx, room.ID, host.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.ActiveRoomFor(host.ID); !errors.Is(err, rooms.ErrNotFound) {
+		t.Fatalf("left host: %v", err)
+	}
+}
+
+func TestConcurrentLobbyReadyDualSocketSeq(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	for iter := 0; iter < 32; iter++ {
+		h, _ := testHub(t, time.Second)
+		host := player("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Host")
+		guest := player("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Guest")
+		room, err := h.Create(ctx, host, 3, 15)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.Join(ctx, guest, room.Passcode); err != nil {
+			t.Fatal(err)
+		}
+		s := h.get(room.ID)
+		// Two sockets per player: waiting-room loadRoom used to close and
+		// reopen WS, so both were in m.conns while Ready was clicked.
+		hostOld := seat(h, s, host)
+		guestOld := seat(h, s, guest)
+		hostNew := seat(h, s, host)
+		guestNew := seat(h, s, guest)
+		drain(hostOld)
+		drain(guestOld)
+		drain(hostNew)
+		drain(guestNew)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if _, err := h.SetLobbyReady(room.ID, host.ID, true); err != nil {
+				t.Errorf("iter %d host ready: %v", iter, err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if _, err := h.SetLobbyReady(room.ID, guest.ID, true); err != nil {
+				t.Errorf("iter %d guest ready: %v", iter, err)
+			}
+		}()
+		wg.Wait()
+
+		snap, err := h.Get(ctx, room.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := readyCount(snap); n != 2 {
+			t.Fatalf("iter %d hub ready=%d seq=%d", iter, n, snap.Seq)
+		}
+
+		hostOldMsgs := drain(hostOld)
+		hostNewMsgs := drain(hostNew)
+		guestOldMsgs := drain(guestOld)
+		guestNewMsgs := drain(guestNew)
+		for name, msgs := range map[string][]map[string]any{
+			"hostOld": hostOldMsgs, "hostNew": hostNewMsgs,
+			"guestOld": guestOldMsgs, "guestNew": guestNewMsgs,
+		} {
+			assertLobbyReadyOrder(t, iter, name, msgs)
+			last := lastType(msgs, "room.updated")
+			if last == nil {
+				t.Fatalf("iter %d %s missing room.updated: %+v", iter, name, msgs)
+			}
+			got := roomFromMsg(last)
+			if n := readyCount(got); n != 2 {
+				t.Fatalf("iter %d %s last snapshot ready=%d seq=%d players=%+v", iter, name, n, got.Seq, got.Players)
+			}
+		}
+
+		// Browser dual-socket race: new WS delivers 2/2, then the old WS
+		// drains a 1/2 frame. Seq skip must keep 2/2.
+		hostView := applyLobbyFrames(append(append([]map[string]any{}, hostNewMsgs...), hostOldMsgs...))
+		guestView := applyLobbyFrames(append(append([]map[string]any{}, guestNewMsgs...), guestOldMsgs...))
+		if n := readyCount(hostView); n != 2 {
+			t.Fatalf("iter %d host dual-socket view ready=%d players=%+v", iter, n, hostView.Players)
+		}
+		if n := readyCount(guestView); n != 2 {
+			t.Fatalf("iter %d guest dual-socket view ready=%d players=%+v", iter, n, guestView.Players)
+		}
+	}
+}
+
+func readyCount(r rooms.Room) int {
+	n := 0
+	for _, p := range r.Players {
+		if p.Ready {
+			n++
+		}
+	}
+	return n
+}
+
+func roomFromMsg(m map[string]any) rooms.Room {
+	raw, _ := json.Marshal(m["room"])
+	var r rooms.Room
+	_ = json.Unmarshal(raw, &r)
+	return r
+}
+
+func jsonInt64(v any) int64 {
+	switch n := v.(type) {
+	case float64:
+		return int64(n)
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	case json.Number:
+		i, _ := n.Int64()
+		return i
+	default:
+		return 0
+	}
+}
+
+func assertLobbyReadyOrder(t *testing.T, iter int, name string, msgs []map[string]any) {
+	t.Helper()
+	lastSnapSeq := int64(-1)
+	sawPair := 0
+	for _, m := range msgs {
+		switch m["type"] {
+		case "room.updated":
+			lastSnapSeq = roomFromMsg(m).Seq
+		case "lobby.ready":
+			seq := jsonInt64(m["seq"])
+			if seq != lastSnapSeq {
+				t.Fatalf("iter %d %s lobby.ready seq=%d after room.updated seq=%d msgs=%+v", iter, name, seq, lastSnapSeq, msgs)
+			}
+			sawPair++
+		}
+	}
+	if sawPair != 2 {
+		t.Fatalf("iter %d %s want 2 lobby.ready pairs, got %d msgs=%+v", iter, name, sawPair, msgs)
+	}
+}
+
+func applyLobbyFrames(msgs []map[string]any) rooms.Room {
+	var cur rooms.Room
+	var seq int64
+	for _, m := range msgs {
+		switch m["type"] {
+		case "room.updated":
+			r := roomFromMsg(m)
+			if r.Seq > 0 && seq > 0 && r.Seq < seq {
+				continue
+			}
+			cur = r
+			if r.Seq > seq {
+				seq = r.Seq
+			}
+		case "lobby.ready":
+			evSeq := jsonInt64(m["seq"])
+			if evSeq > 0 && seq > 0 && evSeq < seq {
+				continue
+			}
+			pid, _ := m["playerId"].(string)
+			ready, _ := m["playerReady"].(bool)
+			for i := range cur.Players {
+				if cur.Players[i].ID == pid {
+					cur.Players[i].Ready = ready
+				}
+			}
+			if evSeq > seq {
+				seq = evSeq
+				cur.Seq = evSeq
+			}
+		}
+	}
+	return cur
 }

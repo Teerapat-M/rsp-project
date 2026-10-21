@@ -39,8 +39,9 @@ export function ResetPage() {
         <form className="authForm" onSubmit={onSubmit}>
           <Input
             icon={<IconLock />}
-            placeholder="New password"
+            placeholder="New password (min 8 characters)"
             type="password"
+            minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

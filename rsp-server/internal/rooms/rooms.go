@@ -59,6 +59,7 @@ type Room struct {
 	TurnSeconds  int       `json:"turnSeconds"`
 	Status       Status    `json:"status"`
 	Players      []Player  `json:"players"`
+	Seq          int64     `json:"seq,omitempty"`
 	CreatedAt    time.Time `json:"-"`
 }
 

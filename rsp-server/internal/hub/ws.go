@@ -23,10 +23,12 @@ const (
 // ErrPhase3 is returned when play/start handlers are unset.
 var ErrPhase3 = errors.New("not implemented")
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(*http.Request) bool { return true },
+func (h *Hub) upgrader() websocket.Upgrader {
+	return websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     h.checkOrigin,
+	}
 }
 
 // ClientMessage is the JSON body the browser sends.
@@ -73,7 +75,9 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request, roomID string, pla
 		return
 	}
 
-	conn, err := upgrader.Upgrade(w, r, nil)
+	up := h.upgrader()
+	up.Subprotocols = websocket.Subprotocols(r)
+	conn, err := up.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}

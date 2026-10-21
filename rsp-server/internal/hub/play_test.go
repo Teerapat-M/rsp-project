@@ -773,3 +773,73 @@ func TestReconnectResumesClock(t *testing.T) {
 		t.Fatal("clock should resume")
 	}
 }
+
+func TestPlayAgainDuringFinalPause(t *testing.T) {
+	t.Parallel()
+	clk := &fakeClock{}
+	h, _ := playHub(t, clk)
+	ctx := context.Background()
+	host := player("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Host")
+	guest := player("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Guest")
+	room, _ := h.Create(ctx, host, 1, 8)
+	_, _ = h.Join(ctx, guest, room.Passcode)
+	s := h.get(room.ID)
+	aliceC := seat(h, s, host)
+	_ = seat(h, s, guest)
+	_ = h.StartMatch(room.ID, host.ID)
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "submit", Move: "rock"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "submit", Move: "scissors"})
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "ready"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "ready"})
+	drain(aliceC)
+
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "play_again"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "play_again"})
+	msgs := drain(aliceC)
+	if lastType(msgs, "match.started") == nil {
+		t.Fatalf("rematch during pause: %+v", msgs)
+	}
+	clk.Fire(3 * time.Second)
+	msgs = drain(aliceC)
+	if lastType(msgs, "match.finished") != nil {
+		t.Fatalf("stale match.finished after rematch: %+v", msgs)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.match == nil || s.match.Status() != game.StatusPlaying {
+		t.Fatalf("rematch clobbered: %+v", s.match)
+	}
+}
+
+func TestDisconnectDuringFinalPauseKeepsSeat(t *testing.T) {
+	t.Parallel()
+	clk := &fakeClock{}
+	h, _ := playHub(t, clk)
+	ctx := context.Background()
+	host := player("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Host")
+	guest := player("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Guest")
+	room, _ := h.Create(ctx, host, 1, 8)
+	_, _ = h.Join(ctx, guest, room.Passcode)
+	s := h.get(room.ID)
+	aliceC := seat(h, s, host)
+	bobC := seat(h, s, guest)
+	_ = h.StartMatch(room.ID, host.ID)
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "submit", Move: "rock"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "submit", Move: "scissors"})
+	h.handlePlay(room.ID, host.ID, ClientMessage{Type: "ready"})
+	h.handlePlay(room.ID, guest.ID, ClientMessage{Type: "ready"})
+	drain(aliceC)
+
+	h.detach(bobC)
+	clk.Fire(50 * time.Millisecond)
+	s.mu.Lock()
+	n := len(s.members)
+	finished := s.match != nil && s.match.Status() == game.StatusFinished
+	s.mu.Unlock()
+	if !finished {
+		t.Fatal("match should be finished during the result pause")
+	}
+	if n != 2 {
+		t.Fatalf("grace during final pause removed a seat, members=%d", n)
+	}
+}
