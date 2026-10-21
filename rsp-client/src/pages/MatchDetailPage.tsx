@@ -1,21 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Button } from '../components/Button'
 import { Hand, moveLabel, RandomBadge } from '../components/Hand'
 import { IconArrowLeft } from '../components/Icons'
 import { api } from '../api'
-import { formatPlayedAt } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
-import { useGame } from '../context/GameContext'
 import { PageStatus } from '../components/PageStatus'
 import type { MatchDetail, PlayableMove } from '../types'
 
 export function MatchDetailPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { createRoom } = useGame()
-  const nav = useNavigate()
   const [m, setM] = useState<MatchDetail | null>(null)
   const [error, setError] = useState('')
 
@@ -39,9 +35,6 @@ export function MatchDetailPage() {
         <h1 className="heroTitle">
           {user.displayName} vs {m.opponentName}
         </h1>
-        <div className="pill" style={{ borderColor: '#16a34a', color: '#16a34a', background: '#e3f5e9' }}>
-          {m.won ? 'Win' : 'Loss'} • {m.youScore} – {m.opponentScore} • First to {m.winsToFinish} • {m.turnSeconds}s/round • {formatPlayedAt(m.playedAt)}
-        </div>
         <div className="panel table">
           <div className="tableHead">
             <span>Round</span>
@@ -71,14 +64,6 @@ export function MatchDetailPage() {
           ))}
         </div>
         <div className="actionsRow" style={{ marginTop: 18 }}>
-          <Button
-            onClick={async () => {
-              const room = await createRoom(m.winsToFinish, m.turnSeconds)
-              nav(`/room/${room.id}`)
-            }}
-          >
-            Rematch
-          </Button>
           <Button variant="secondary" to="/history">
             Back to History
           </Button>
