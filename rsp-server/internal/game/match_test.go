@@ -361,6 +361,40 @@ func TestTurnSecondsAndPlayersExposed(t *testing.T) {
 	}
 }
 
+func TestForfeitAwardsMatchToOpponent(t *testing.T) {
+	t.Parallel()
+	m := newTestMatch(t, 3, 10)
+	mustSubmit(t, m, alice, 1, MoveRock)
+	if err := m.Forfeit(bob); err != nil {
+		t.Fatal(err)
+	}
+	w, ok := m.Winner()
+	if !ok || w != alice {
+		t.Fatalf("winner = %s ok=%v", w, ok)
+	}
+	if sa, _ := m.Score(alice); sa != 3 {
+		t.Fatalf("alice score = %d, want winsNeeded", sa)
+	}
+	if m.Status() != StatusFinished {
+		t.Fatal("status")
+	}
+	if err := m.Forfeit(bob); !errors.Is(err, ErrMatchOver) {
+		t.Fatalf("second forfeit: %v", err)
+	}
+	if err := m.Forfeit("carol"); !errors.Is(err, ErrMatchOver) {
+		// match is already over; unknown player is not reached
+		t.Fatalf("over: %v", err)
+	}
+}
+
+func TestForfeitUnknownPlayer(t *testing.T) {
+	t.Parallel()
+	m := newTestMatch(t, 1, 10)
+	if err := m.Forfeit("carol"); !errors.Is(err, ErrUnknownPlayer) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestDrawDoesNotAwardWin(t *testing.T) {
 	t.Parallel()
 	m := newTestMatch(t, 1, 10)

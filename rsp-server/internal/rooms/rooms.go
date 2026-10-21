@@ -126,4 +126,9 @@ type Store interface {
 	CloseRoom(ctx context.Context, id string) error
 	SetHost(ctx context.Context, roomID, hostID string) error
 	SetStatus(ctx context.Context, id string, status Status) error
+
+	InsertMatch(ctx context.Context, roomID string) (matchID string, err error)
+	FinishMatch(ctx context.Context, matchID, winnerID string) error
+	SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]string) error
+	ApplyMatchStats(ctx context.Context, userID string, won, lost bool, rock, paper, scissors int) error
 }

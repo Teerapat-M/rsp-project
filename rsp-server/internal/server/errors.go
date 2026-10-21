@@ -52,6 +52,12 @@ func classify(err error) (int, string, string) {
 		return http.StatusBadRequest, "VALIDATION", err.Error()
 	case errors.Is(err, passcode.ErrExhausted):
 		return http.StatusServiceUnavailable, "CONFLICT", "could not allocate a passcode"
+	case errors.Is(err, hub.ErrNotHost):
+		return http.StatusForbidden, "VALIDATION", err.Error()
+	case errors.Is(err, hub.ErrNeedTwo), errors.Is(err, hub.ErrNotPlaying), errors.Is(err, hub.ErrOpponentHere):
+		return http.StatusBadRequest, "VALIDATION", err.Error()
+	case errors.Is(err, hub.ErrAlreadyPlaying):
+		return http.StatusConflict, "CONFLICT", err.Error()
 	case errors.Is(err, hub.ErrPhase3):
 		return http.StatusNotImplemented, "NOT_IMPLEMENTED", err.Error()
 	default:

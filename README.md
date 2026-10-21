@@ -2,7 +2,7 @@
 
 Online Rock-Paper-Scissors. Backend is Go in [`rsp-server/`](rsp-server/); the React client lives in [`rsp-client/`](rsp-client/).
 
-**You are here: phase 2** — create/join rooms by 6-digit passcode, an in-memory WebSocket hub, and a temporary player identity. Gameplay countdown and real auth are later. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
+**You are here: phase 3** — rooms, WebSocket presence, and live match play (countdown, hidden moves, resolve, persist). Real auth is phase 4. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
 
 ## Prerequisites
 
@@ -84,9 +84,24 @@ ws://localhost:8080/ws?room=<id>&token=alice
 
 Send `{"type":"lobby.ready"}` or `{"type":"leave"}`. Presence and `room.updated` are pushed to everyone in the room. Disconnect grace is 20s (`DISCONNECT_GRACE`).
 
-`POST /rooms/:id/start` and move/ready-during-play are **phase 3** (`501 NOT_IMPLEMENTED`).
+### Play a match (phase 3)
 
-The React app in `rsp-client/` already speaks this REST shape (`/rooms`, `/rooms/join`, error codes `WRONG_PASSCODE` / `ROOM_FULL`). It still defaults to its mock (`VITE_USE_MOCK` not `false`). To point it at Go: mint a guest via `/dev/guest`, store `accessToken` / `user` the way the mock login does, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`).
+After two players have joined and opened `/ws`:
+
+```bash
+# host starts (only the host, and only with 2 players)
+curl -s -X POST http://localhost:8080/rooms/<id>/start -H 'X-Player-ID: alice'
+
+# on each WebSocket:
+# {"type":"submit","move":"rock"}
+# {"type":"ready"}
+```
+
+The server hides each move until both are Ready or `turnSeconds` elapses. Timeout with no card loses to a real throw; both timeout is a draw. First to `winsToFinish` ends the match. Rounds and the match are written to Postgres; `user_stats` updates at match end.
+
+Disconnect mid-match pauses the clock (grace, default 20s). Come back in time and play continues; otherwise it is a forfeit. After `match.finished`, send `{"type":"play_again"}` (both players) for a rematch, or `leave` to return to the lobby.
+
+The React app in `rsp-client/` already speaks this REST + WS shape. It still defaults to its mock (`VITE_USE_MOCK` not `false`). To point it at Go: mint a guest via `/dev/guest`, store `accessToken` / `user` the way the mock login does, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`). Auth is still temporary until phase 4.
 
 ## Tests
 

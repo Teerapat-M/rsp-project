@@ -20,8 +20,9 @@ const (
 	maxMsg     = 4096
 )
 
-// ErrPhase3 is returned by StartMatch and WS play messages until phase 3 wires the clock.
-var ErrPhase3 = errors.New("countdown, moves, and round resolution are phase 3")
+// ErrPhase3 is returned for mock-only client messages (simulate) that the
+// real hub does not implement.
+var ErrPhase3 = errors.New("simulate is mock-only")
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -29,8 +30,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(*http.Request) bool { return true },
 }
 
-// ClientMessage is the JSON body the browser sends. Phase 2 handles lobby.ready,
-// ready (while waiting), and leave. Everything else is a documented hook.
+// ClientMessage is the JSON body the browser sends.
 type ClientMessage struct {
 	Type string `json:"type"`
 	Move string `json:"move,omitempty"`

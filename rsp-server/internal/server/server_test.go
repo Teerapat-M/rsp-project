@@ -183,21 +183,35 @@ func TestUnauthorized(t *testing.T) {
 	}
 }
 
-func TestStartIsPhase3Hook(t *testing.T) {
+func TestStartNeedsTwoThenStarts(t *testing.T) {
 	ts := newTestAPI(t)
 	defer ts.Close()
 	res := doJSON(t, ts, http.MethodPost, "/rooms", "alice", map[string]int{"winsToFinish": 1, "turnSeconds": 10})
 	var room rooms.Room
 	decode(t, res, &room)
 	res = doJSON(t, ts, http.MethodPost, "/rooms/"+room.ID+"/start", "alice", nil)
-	if res.StatusCode != http.StatusNotImplemented {
-		t.Fatalf("status %d", res.StatusCode)
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("solo start status %d", res.StatusCode)
 	}
 	var errBody apiError
 	decode(t, res, &errBody)
-	if errBody.Code != "NOT_IMPLEMENTED" {
+	if errBody.Code != "VALIDATION" {
 		t.Fatalf("%+v", errBody)
 	}
+
+	res = doJSON(t, ts, http.MethodPost, "/rooms/join", "bob", map[string]string{"passcode": room.Passcode})
+	decode(t, res, &room)
+	res = doJSON(t, ts, http.MethodPost, "/rooms/"+room.ID+"/start", "bob", nil)
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("guest start %d", res.StatusCode)
+	}
+	decode(t, res, &errBody)
+
+	res = doJSON(t, ts, http.MethodPost, "/rooms/"+room.ID+"/start", "alice", nil)
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("host start %d", res.StatusCode)
+	}
+	decode(t, res, nil)
 }
 
 func TestWSJoinLeavePresence(t *testing.T) {
@@ -343,7 +357,77 @@ func TestHealth(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body["phase"] != float64(2) {
+	if body["phase"] != float64(3) {
 		t.Fatalf("%v", body)
 	}
+}
+
+func TestWSPlayRound(t *testing.T) {
+	ts := newTestAPI(t)
+	defer ts.Close()
+
+	res := doJSON(t, ts, http.MethodPost, "/rooms", "alice", map[string]int{"winsToFinish": 1, "turnSeconds": 15})
+	var room rooms.Room
+	decode(t, res, &room)
+	res = doJSON(t, ts, http.MethodPost, "/rooms/join", "bob", map[string]string{"passcode": room.Passcode})
+	decode(t, res, &room)
+
+	dial := func(token string) *websocket.Conn {
+		t.Helper()
+		u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?room=" + room.ID + "&token=" + token
+		conn, _, err := websocket.DefaultDialer.Dial(u, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return conn
+	}
+	aliceWS := dial("alice")
+	defer aliceWS.Close()
+	bobWS := dial("bob")
+	defer bobWS.Close()
+
+	waitType := func(conn *websocket.Conn, typ string, deadline time.Duration) map[string]any {
+		t.Helper()
+		_ = conn.SetReadDeadline(time.Now().Add(deadline))
+		for {
+			var msg map[string]any
+			if err := conn.ReadJSON(&msg); err != nil {
+				t.Fatalf("waiting for %s: %v", typ, err)
+			}
+			if msg["type"] == typ {
+				return msg
+			}
+		}
+	}
+
+	res = doJSON(t, ts, http.MethodPost, "/rooms/"+room.ID+"/start", "alice", nil)
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("start %d", res.StatusCode)
+	}
+	decode(t, res, nil)
+	started := waitType(aliceWS, "match.started", 2*time.Second)
+	view, _ := started["view"].(map[string]any)
+	if view["roundNumber"] != float64(1) {
+		t.Fatalf("started %+v", started)
+	}
+
+	if err := aliceWS.WriteJSON(map[string]string{"type": "submit", "move": "rock"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bobWS.WriteJSON(map[string]string{"type": "submit", "move": "scissors"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := aliceWS.WriteJSON(map[string]string{"type": "ready"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bobWS.WriteJSON(map[string]string{"type": "ready"}); err != nil {
+		t.Fatal(err)
+	}
+
+	resolved := waitType(aliceWS, "round.resolved", 2*time.Second)
+	result, _ := resolved["result"].(map[string]any)
+	if result["yourMove"] != "rock" || result["opponentMove"] != "scissors" || result["youWon"] != true {
+		t.Fatalf("result %+v", result)
+	}
+	_ = waitType(aliceWS, "match.finished", 5*time.Second)
 }

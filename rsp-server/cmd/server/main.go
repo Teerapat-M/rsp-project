@@ -39,7 +39,7 @@ func main() {
 	h := hub.New(store, hub.Config{Grace: grace})
 	r := server.New(h).Router()
 
-	log.Printf("listening on %s (phase 2 rooms/ws, grace=%s)", addr, grace)
+	log.Printf("listening on %s (phase 3 gameplay, grace=%s)", addr, grace)
 	if err := r.Run(addr); err != nil {
 		log.Fatal(err)
 	}

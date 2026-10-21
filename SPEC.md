@@ -168,3 +168,13 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] Temporary identity: `X-Player-ID` or `Authorization: Bearer` / `POST /dev/guest` (not phase 4 JWT)
 - [x] Phase 3 hooks only: `POST /rooms/:id/start` and WS `submit`/`ready` (while playing) return `NOT_IMPLEMENTED`
 - [x] Unit tests: passcode, join rules, hub; WS integration via `httptest`; `make test` (`make test-race` when cgo is available)
+
+## Phase 3 acceptance
+
+- [x] `POST /rooms/:id/start` (host, two players) starts an in-memory match and persists a `matches` row
+- [x] WS `submit` / `ready` while playing; moves stay hidden until both Ready or the turn timer fires
+- [x] Server-side countdown using the room's `turnSeconds`; `Timeout(roundNo)` so a late timer cannot resolve a later round
+- [x] Timeout with no card loses to a real throw; both timeout → draw; first to `winsToFinish` ends the match
+- [x] Persist `rounds` + `round_moves`; update `user_stats` when the match ends
+- [x] Mid-match disconnect: grace, pause, then forfeit; `claim_win` if the opponent is already gone; rematch via `play_again` or leave to lobby
+- [x] `docs/ws-protocol.md` lists match events; table-driven hub tests plus a two-player WS round; `make test` / `make test-race`

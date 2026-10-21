@@ -213,6 +213,26 @@ func (m *Match) Score(id PlayerID) (int, error) {
 	return m.scores[i], nil
 }
 
+// Forfeit ends the match because loser disconnected past grace (or the opponent
+// claimed the win). Completed rounds stay as-is; the remaining player is the
+// winner. Their score is raised to winsNeeded so the result screen is not 0–0.
+func (m *Match) Forfeit(loser PlayerID) error {
+	if m.status == StatusFinished {
+		return ErrMatchOver
+	}
+	i, err := m.side(loser)
+	if err != nil {
+		return err
+	}
+	opp := 1 - i
+	if m.scores[opp] < m.winsNeeded {
+		m.scores[opp] = m.winsNeeded
+	}
+	m.status = StatusFinished
+	m.round = nil
+	return nil
+}
+
 // Winner reports the player who reached wins_to_finish. ok is false while playing
 // (and would stay false if we ever persisted an abandoned match with no winner).
 func (m *Match) Winner() (PlayerID, bool) {

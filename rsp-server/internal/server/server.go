@@ -31,7 +31,7 @@ func (s *Server) Router() *gin.Engine {
 	auth.POST("/rooms/join", s.joinRoom)
 	auth.GET("/rooms/:id", s.getRoom)
 	auth.POST("/rooms/:id/leave", s.leaveRoom)
-	auth.POST("/rooms/:id/start", s.startRoom) // phase 3 hook
+	auth.POST("/rooms/:id/start", s.startRoom)
 
 	r.GET("/ws", s.ws)
 	return r
@@ -56,7 +56,7 @@ func cors() gin.HandlerFunc {
 }
 
 func (s *Server) health(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "phase": 2})
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "phase": 3})
 }
 
 type guestBody struct {
