@@ -47,7 +47,7 @@ type Player struct {
 	Connected   bool   `json:"connected"`
 }
 
-// Room matches web/src/types.ts Room (camelCase) plus presence extras.
+// Room matches rsp-client/src/types.ts Room (camelCase) plus presence extras.
 type Room struct {
 	ID           string    `json:"id"`
 	Passcode     string    `json:"passcode"`

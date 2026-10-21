@@ -28,13 +28,13 @@ On connect the server sends `room.updated` (and `presence` if anyone else is wat
 | `pong` | Reply to `ping` | `{}` |
 | `error` | Bad client message | `{ "code", "message" }` |
 
-`Room` / `RoomPlayer` match `web/src/types.ts` (camelCase) plus `ready` and `connected` on each player. The React mock already consumes `room.updated`.
+`Room` / `RoomPlayer` match `rsp-client/src/types.ts` (camelCase) plus `ready` and `connected` on each player. The React mock already consumes `room.updated`.
 
 Disconnect grace (default 20s, `DISCONNECT_GRACE`): the player **stays in the room** with `connected: false`. Reconnect with the same identity cancels the timer. If it fires, they are removed (`player.left`). Empty rooms are closed so the passcode can be reused.
 
 ### Phase 3 (not sent yet)
 
-These names are reserved so the frontend contract in `web/src/types.ts` does not have to change:
+These names are reserved so the frontend contract in `rsp-client/src/types.ts` does not have to change:
 
 `match.started`, `tick`, `view`, `round.resolved`, `match.finished`, `opponent.disconnected`, `opponent.reconnected`, `play_again.waiting`, `connection.lost`, `connection.restored`.
 

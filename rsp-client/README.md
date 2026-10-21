@@ -7,7 +7,7 @@ Phase 2 of the Go server now implements create/join/leave rooms and the waiting-
 ## Run
 
 ```bash
-cd web
+cd rsp-client
 npm install
 npm run dev
 ```

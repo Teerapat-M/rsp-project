@@ -16,6 +16,6 @@ vendor/
 .vscode/
 *.swp
 
-# Frontend (web/ also has its own gitignore)
-web/node_modules/
-web/dist/
+# Frontend (rsp-client/ also has its own gitignore)
+rsp-client/node_modules/
+rsp-client/dist/

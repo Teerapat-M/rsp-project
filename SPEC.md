@@ -64,7 +64,7 @@ Per user, persisted at round/match end:
 
 ## Data model
 
-PostgreSQL. UUIDs for public ids. `db/migrations/000001_init` then `000002_auth_and_passcode` (do not edit applied v1).
+PostgreSQL. UUIDs for public ids. `rsp-server/db/migrations/000001_init` then `000002_auth_and_passcode` (do not edit applied v1).
 
 | Table | Role |
 | --- | --- |
@@ -115,18 +115,18 @@ Stack: Go 1.22+, gin, gorilla/websocket, PostgreSQL, sqlc, golang-migrate, Docke
 Layout:
 
 ```
-cmd/server          process entry (HTTP)
-internal/game       pure rules — no I/O, no clocks
-internal/ident      TEMPORARY player identity (X-Player-ID / dev guest token)
-internal/passcode   6-digit codes
-internal/rooms      create/join/leave + sqlc store
-internal/hub        in-memory live rooms + WebSocket
-internal/server     gin HTTP
-internal/sqlcdb     sqlc output
-db/migrations       golang-migrate
-db/queries          sqlc input
-docs/ws-protocol.md WebSocket message types
-web/                React app (mock API; HTTP client already matches this phase)
+rsp-server/cmd/server     process entry (HTTP)
+rsp-server/internal/game  pure rules — no I/O, no clocks
+rsp-server/internal/ident TEMPORARY player identity (X-Player-ID / dev guest token)
+rsp-server/internal/passcode  6-digit codes
+rsp-server/internal/rooms create/join/leave + sqlc store
+rsp-server/internal/hub   in-memory live rooms + WebSocket
+rsp-server/internal/server gin HTTP
+rsp-server/internal/sqlcdb sqlc output
+rsp-server/db/migrations  golang-migrate
+rsp-server/db/queries     sqlc input
+docs/ws-protocol.md       WebSocket message types
+rsp-client/               React app (mock API; HTTP client already matches this phase)
 ```
 
 ---
@@ -139,7 +139,7 @@ web/                React app (mock API; HTTP client already matches this phase)
 | **2 — rooms / passcode / websocket** (this PR) | Create/join room by passcode, WS connect with a **dev guest token** (JWT in phase 4), presence + ready-lobby + disconnect grace | Real Google/guest login, countdown / moves / resolve |
 | **3 — countdown / ready / resolve** | Server timer, submit + ready, hide moves, resolve, `wins_to_finish`, persist round/match rows | Auth, polished UI |
 | **4 — auth** | Guest JWT; username/password register + login; Remember me (refresh token); Forgot password (dev: log the link); bcrypt; guest upgrade to a password account; then Google OAuth | Stats page, drag-drop |
-| **5 — stats / history + React drag-drop** | `user_stats` + history API, React + Vite in `/web`, dnd-kit cards → drop slot → Ready | Production hosting |
+| **5 — stats / history + React drag-drop** | `user_stats` + history API, React + Vite in `rsp-client`, dnd-kit cards → drop slot → Ready | Production hosting |
 | **6 — deploy** | Dockerfile, Compose or a small VM, env-based config, README for a stranger to run it | Extra game modes |
 
 Each phase is one PR. Do not fold later phases into this one.
@@ -149,7 +149,7 @@ Each phase is one PR. Do not fold later phases into this one.
 ## Phase 1 acceptance
 
 - [x] Spec and roadmap in `SPEC.md`
-- [x] `cmd/`, `internal/`, `go.mod`, `Makefile`, Compose Postgres, migrations, `.env.example`, README
+- [x] `rsp-server/` (`cmd/`, `internal/`, `go.mod`, `Makefile`, Compose Postgres, migrations, `.env.example`), README
 - [x] `internal/game` covers move resolution, timeout, round/match state, `wins_to_finish`
 - [x] Table-driven unit tests, `go test ./...` passing
 - [x] `docker compose up` starts Postgres and applies migrations
@@ -159,7 +159,7 @@ Each phase is one PR. Do not fold later phases into this one.
 ## Phase 2 acceptance
 
 - [x] `POST /rooms` with `winsToFinish` / `turnSeconds` mints a unique 6-digit passcode, persists `rooms` + host in `room_players`
-- [x] `POST /rooms/join` by passcode; `WRONG_PASSCODE` (404) and `ROOM_FULL` (409) match the React client in `web/`
+- [x] `POST /rooms/join` by passcode; `WRONG_PASSCODE` (404) and `ROOM_FULL` (409) match the React client in `rsp-client/`
 - [x] `POST /rooms/:id/leave` and `GET /rooms/:id`
 - [x] `GET /ws?room=&token=` — join/leave/presence, lobby ready, disconnect grace; types in `docs/ws-protocol.md`
 - [x] In-memory hub (mutex per room + map mutex), empty rooms closed and dropped so passcodes reuse

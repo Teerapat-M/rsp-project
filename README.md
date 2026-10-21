@@ -1,6 +1,6 @@
 # rsp-project
 
-Online Rock-Paper-Scissors. Backend is Go; the React client lives in [`web/`](web/).
+Online Rock-Paper-Scissors. Backend is Go in [`rsp-server/`](rsp-server/); the React client lives in [`rsp-client/`](rsp-client/).
 
 **You are here: phase 2** — create/join rooms by 6-digit passcode, an in-memory WebSocket hub, and a temporary player identity. Gameplay countdown and real auth are later. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
 
@@ -10,6 +10,8 @@ Online Rock-Paper-Scissors. Backend is Go; the React client lives in [`web/`](we
 - Docker with Compose v2 (`docker compose`)
 
 ## Run Postgres + migrations
+
+From `rsp-server/`:
 
 ```bash
 cp .env.example .env   # optional; Compose uses the same defaults
@@ -34,6 +36,7 @@ docker compose down -v
 ## API (phase 2)
 
 ```bash
+cd rsp-server
 make run
 # GET http://localhost:8080/health
 ```
@@ -83,17 +86,20 @@ Send `{"type":"lobby.ready"}` or `{"type":"leave"}`. Presence and `room.updated`
 
 `POST /rooms/:id/start` and move/ready-during-play are **phase 3** (`501 NOT_IMPLEMENTED`).
 
-The React app in `web/` already speaks this REST shape (`/rooms`, `/rooms/join`, error codes `WRONG_PASSCODE` / `ROOM_FULL`). It still defaults to its mock (`VITE_USE_MOCK` not `false`). To point it at Go: mint a guest via `/dev/guest`, store `accessToken` / `user` the way the mock login does, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`).
+The React app in `rsp-client/` already speaks this REST shape (`/rooms`, `/rooms/join`, error codes `WRONG_PASSCODE` / `ROOM_FULL`). It still defaults to its mock (`VITE_USE_MOCK` not `false`). To point it at Go: mint a guest via `/dev/guest`, store `accessToken` / `user` the way the mock login does, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`).
 
 ## Tests
 
 ```bash
+cd rsp-server
 make test          # go test ./... -race
 ```
 
 No Docker required: join rules, passcode allocation, the hub, and the WS integration test use an in-memory store.
 
 ## Makefile
+
+Run these from `rsp-server/`.
 
 | Target | What |
 | --- | --- |
@@ -105,30 +111,30 @@ No Docker required: join rules, passcode allocation, the hub, and the WS integra
 
 ## Frontend (React)
 
-The UI is a separate app in `web/` (Vite + TypeScript + dnd-kit). Mock mode is still the default so every screen is clickable without auth.
+The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). Mock mode is still the default so every screen is clickable without auth.
 
 ```bash
-cd web
+cd rsp-client
 npm install
 npm run dev      # http://localhost:5173
 npm run build
 ```
 
-Details: [web/README.md](web/README.md).
+Details: [rsp-client/README.md](rsp-client/README.md).
 
 ## Layout
 
 ```
-cmd/server          main()
-internal/game       rules engine
-internal/ident      temporary player identity
-internal/passcode   6-digit codes
-internal/rooms      persistence + join rules
-internal/hub        live rooms + WS
-internal/server     gin routes
-internal/sqlcdb     generated
-db/migrations       schema
-db/queries          sqlc SQL
-docs/ws-protocol.md WS types
-web/                React + Vite client
+rsp-server/cmd/server     main()
+rsp-server/internal/game  rules engine
+rsp-server/internal/ident temporary player identity
+rsp-server/internal/passcode  6-digit codes
+rsp-server/internal/rooms persistence + join rules
+rsp-server/internal/hub   live rooms + WS
+rsp-server/internal/server gin routes
+rsp-server/internal/sqlcdb generated
+rsp-server/db/migrations  schema
+rsp-server/db/queries     sqlc SQL
+docs/ws-protocol.md       WS types
+rsp-client/               React + Vite client
 ```
