@@ -2,3 +2,4 @@
 # checks them out as CRLF and the image fails with:
 #   exec /entrypoint.sh: no such file or directory
 *.sh text eol=lf
+*.sed text eol=lf

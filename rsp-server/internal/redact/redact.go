@@ -31,6 +31,7 @@ var (
 	bearer      = regexp.MustCompile(`(?i)(bearer\s+)\S+`)
 	jsonSecret  = regexp.MustCompile(`(?i)("(?:accessToken|refreshToken|idToken|password|token)"\s*:\s*")[^"]*(")`)
 	mapSecret   = regexp.MustCompile(`(?i)(\b(?:accessToken|refreshToken|idToken)[:])[^\s\]]+`)
+	forUser     = regexp.MustCompile(`(?i)(\bfor user )(["'])([^"']*)(["'])`)
 )
 
 // String redacts userinfo, passwords, tokens, and known secret env values.
@@ -50,6 +51,7 @@ func String(s string) string {
 	s = bearer.ReplaceAllString(s, "${1}"+mask)
 	s = jsonSecret.ReplaceAllString(s, "${1}"+mask+"${2}")
 	s = mapSecret.ReplaceAllString(s, "${1}"+mask)
+	s = forUser.ReplaceAllString(s, "${1}${2}"+mask+"${4}")
 	return s
 }
 

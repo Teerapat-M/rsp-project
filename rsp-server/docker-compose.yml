@@ -16,8 +16,10 @@ services:
       timeout: 5s
       retries: 15
 
-  # golang-migrate one-shot on the Compose network. Talks to db:5432 (container port),
-  # not the published host port. Exit 0 = schema current.
+  # golang-migrate one-shot on the Compose network. Talks to db:5432 (container
+  # port), not the published host port. Exit 0 = schema current. No restart:
+  # the official image prints the DSN on failure; looping would hang `up`.
+  # Host-side alternative (no container logs): make migrate-up (localhost:5433).
   migrate:
     image: migrate/migrate:v4.18.1
     depends_on:
@@ -32,7 +34,7 @@ services:
         "-database=postgres://${POSTGRES_USER:-rsp}:${POSTGRES_PASSWORD:-rsp}@db:5432/${POSTGRES_DB:-rsp}?sslmode=disable",
         "up",
       ]
-    restart: on-failure
+    restart: "no"
 
 volumes:
   pgdata:

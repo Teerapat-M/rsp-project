@@ -66,6 +66,25 @@ func TestStringRedactsTokensAndEnvSecrets(t *testing.T) {
 	}
 }
 
+func TestStringRedactsPqForUser(t *testing.T) {
+	in := `pq: password authentication failed for user "leakuser"`
+	got := String(in)
+	if strings.Contains(got, "leakuser") {
+		t.Fatalf("user leaked: %s", got)
+	}
+	if !strings.Contains(got, `for user "***"`) {
+		t.Fatalf("expected masked for user, got %s", got)
+	}
+	in = "FATAL:  password authentication failed for user 'rsp_prod'"
+	got = String(in)
+	if strings.Contains(got, "rsp_prod") {
+		t.Fatalf("user leaked: %s", got)
+	}
+	if !strings.Contains(got, "for user '"+mask+"'") {
+		t.Fatalf("expected masked for user, got %s", got)
+	}
+}
+
 func TestDSNErrorStripsParsedUserinfo(t *testing.T) {
 	dsn := "postgres://leakuser:" + leaked + "@127.0.0.1:1/postgres?sslmode=disable"
 	orig := errors.New("failed to connect to `user=leakuser database=postgres`: dial tcp 127.0.0.1:1: connect: connection refused")

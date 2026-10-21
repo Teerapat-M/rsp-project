@@ -6,13 +6,12 @@
 #
 # Do not `set -x`: it would print DATABASE_URL. golang-migrate embeds the
 # DSN (password and all) in errors like: failed to open database, "<DSN>".
-# Filter that before it hits Render logs.
+# Filter that before it hits Render logs. Non-zero exit if migrate fails
+# (the API must not start against an unmigrated or unreachable DB).
 set -e
 
 redact_log() {
-	sed -e "s#postgres://[^[:space:]\"']*@#postgres://***@#g" \
-		-e "s#postgresql://[^[:space:]\"']*@#postgresql://***@#g" \
-		-e "s#[Pp]assword=[^[:space:]\"']*#password=***#g"
+	sed -f /redact-log.sed
 }
 
 dsn=${DATABASE_URL_MIGRATE:-$DATABASE_URL}

@@ -106,7 +106,7 @@ PostgreSQL   (users, rooms, persisted results)
 
 Stack: Go 1.22+, gin, gorilla/websocket, PostgreSQL, sqlc, golang-migrate, Docker Compose.
 
-Compose publishes Postgres on **localhost:5433** (`5433:5432`) so a native Postgres on 5432 can coexist. Host tools (`DATABASE_URL`, `make migrate-up`, `cmd/server` default) use `localhost:5433`. Inside the Compose network the migrate service uses `db:5432`.
+Compose publishes Postgres on **localhost:5433** (`5433:5432`) so a native Postgres on 5432 can coexist. Host tools (`DATABASE_URL`, `make migrate-up`, `cmd/server` default) use `localhost:5433`. Dev Compose may apply schema with a one-shot migrate container on `db:5432`; production Compose relies on the API image entrypoint instead.
 
 **gorilla/websocket** rather than coder/websocket: more examples a junior can cite, same job at this scale.
 
@@ -199,7 +199,7 @@ Each phase is one PR. Do not fold later phases into this one.
 ## Phase 6 acceptance
 
 - [x] `rsp-server/Dockerfile` and `rsp-client/Dockerfile` (nginx SPA proxies `/api` and `/ws`)
-- [x] `docker-compose.prod.yml` — Postgres + migrate + API + web; secrets from env only
+- [x] `docker-compose.prod.yml` — Postgres + API (entrypoint migrates) + web; secrets from env only
 - [x] `GET /health` (liveness) and `GET /ready` (Postgres ping)
 - [x] Production refuses missing/`dev` `JWT_SECRET`, `EMAIL_PROVIDER=log`, empty `CORS_ORIGINS`, empty `DATABASE_URL`; `/dev/guest` stays off
 - [x] Auth POST rate limit, CORS/WS origin allowlist, DB password from env, `sslmode` documented
