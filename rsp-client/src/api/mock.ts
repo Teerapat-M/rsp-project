@@ -287,6 +287,7 @@ function viewFor(rt: Runtime, user: User): PlayerView {
       m?.history.map((h) => ({
         number: h.number,
         moves: { [m.players[0]]: h.moves[0], [m.players[1]]: h.moves[1] },
+        autoPicked: { [m.players[0]]: h.autoPicked[0], [m.players[1]]: h.autoPicked[1] },
         winnerId: h.winnerId,
         draw: h.draw,
       })) ?? [],
@@ -359,6 +360,8 @@ function onSettled(rt: Runtime): void {
     winsNeeded: m.winsNeeded,
     yourMove: last.moves[i],
     opponentMove: last.moves[1 - i],
+    yourAutoPicked: last.autoPicked[i],
+    opponentAutoPicked: last.autoPicked[1 - i],
     youWon,
     draw: last.draw,
     scores: { [m.players[0]]: m.scores[0], [m.players[1]]: m.scores[1] },
@@ -367,8 +370,7 @@ function onSettled(rt: Runtime): void {
   }
   rt.lastResult = result
   const view = viewFor(rt, user)
-  const youTimedOut = last.moves[i] === 'timeout'
-  const revealDelay = youTimedOut ? 1800 : 80
+  const revealDelay = last.autoPicked[i] ? 1800 : 80
   rt.resultPause = setTimeout(() => {
     emit(rt.room.id, { type: 'round.resolved', result, view })
     if (m.status === 'finished') {
@@ -427,6 +429,8 @@ function persistMatch(user: User, rt: Runtime, lastPick: number): void {
         opponent: h.moves[1 - i],
         result,
         pickTimeSec: idx === m.history.length - 1 ? lastPick : 4 + idx,
+        youAutoPicked: h.autoPicked[i],
+        opponentAutoPicked: h.autoPicked[1 - i],
       }
     }),
   }
@@ -733,10 +737,10 @@ export const mockApi: ApiClient = {
         rt.match.status = 'finished'
         rt.match.scores = [3, 1]
         rt.match.history = [
-          { number: 1, moves: ['rock', 'scissors'], winnerId: user.id, draw: false },
-          { number: 2, moves: ['paper', 'rock'], winnerId: user.id, draw: false },
-          { number: 3, moves: ['scissors', 'rock'], winnerId: bell.id, draw: false },
-          { number: 4, moves: ['rock', 'scissors'], winnerId: user.id, draw: false },
+          { number: 1, moves: ['rock', 'scissors'], autoPicked: [false, false], winnerId: user.id, draw: false },
+          { number: 2, moves: ['paper', 'rock'], autoPicked: [false, true], winnerId: user.id, draw: false },
+          { number: 3, moves: ['scissors', 'rock'], autoPicked: [false, false], winnerId: bell.id, draw: false },
+          { number: 4, moves: ['rock', 'scissors'], autoPicked: [true, false], winnerId: user.id, draw: false },
         ]
       }
       if (id === 'connection') {

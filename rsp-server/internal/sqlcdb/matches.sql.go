@@ -143,17 +143,18 @@ func (q *Queries) InsertRound(ctx context.Context, arg InsertRoundParams) (Round
 }
 
 const insertRoundMove = `-- name: InsertRoundMove :exec
-INSERT INTO round_moves (round_id, user_id, move)
-VALUES ($1, $2, $3)
+INSERT INTO round_moves (round_id, user_id, move, auto_picked)
+VALUES ($1, $2, $3, $4)
 `
 
 type InsertRoundMoveParams struct {
-	RoundID uuid.UUID `json:"round_id"`
-	UserID  uuid.UUID `json:"user_id"`
-	Move    MoveKind  `json:"move"`
+	RoundID    uuid.UUID `json:"round_id"`
+	UserID     uuid.UUID `json:"user_id"`
+	Move       MoveKind  `json:"move"`
+	AutoPicked bool      `json:"auto_picked"`
 }
 
 func (q *Queries) InsertRoundMove(ctx context.Context, arg InsertRoundMoveParams) error {
-	_, err := q.db.Exec(ctx, insertRoundMove, arg.RoundID, arg.UserID, arg.Move)
+	_, err := q.db.Exec(ctx, insertRoundMove, arg.RoundID, arg.UserID, arg.Move, arg.AutoPicked)
 	return err
 }

@@ -12,7 +12,7 @@ The token is the **temporary** player identity (same value as `Authorization: Be
 
 You must already be in the room (create or join via REST). Unknown room or a stranger gets HTTP 403/404 **before** the upgrade.
 
-On connect the server sends `room.updated` (and `presence` if anyone else is watching). If a match is in progress it also sends `view` for this player.
+On connect the server sends `room.updated` (and `presence` if anyone else is watching). If a match is already in progress it also sends `match.started` (or `match.finished`) for this player — the same snapshot a socket that was connected at `POST /rooms/:id/start` would have received. A late or reconnecting socket must not wait for a start event that already fired.
 
 ## Server → client
 
@@ -69,14 +69,14 @@ Ready without a card → `error` `VALIDATION` (`ready requires a submitted move`
 The server owns the clock. Each round lasts `turnSeconds` (the room setting). `tick` broadcasts remaining whole seconds. When it hits 0 the hub calls `game.Match.Timeout(roundNo)`.
 
 - A submitted-but-not-ready move **counts**.
-- No move → `timeout`. Timeout loses to a real throw. Both timeout → draw.
+- No move → the server picks rock, paper, or scissors at random (`yourAutoPicked` / `opponentAutoPicked` on `round.resolved`, `autoPicked` on history). The round then resolves with the usual cycle.
 - The timeout closure captures `roundNo`. A late timer from round N cannot resolve round N+1 (`ErrStaleRound`).
 
 After `round.resolved` there is a 3s pause (`nextRoundIn`) so the UI can show the result, then either the next `tick` or `match.finished`.
 
 ## Persistence
 
-At round end the server writes `rounds` + `round_moves`. At match end it sets `matches.winner_id` / `ended_at` and increments `user_stats` (matches played, wins/losses, throw counts — timeouts do not increment a throw).
+At round end the server writes `rounds` + `round_moves` (`auto_picked` is true when the timer chose the card). At match end it sets `matches.winner_id` / `ended_at` and increments `user_stats` (matches played, wins/losses, throw counts — auto-picks count as throws).
 
 ## Identity (temporary)
 

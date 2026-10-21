@@ -31,9 +31,10 @@ type MemMatch struct {
 }
 
 type MemRound struct {
-	Number   int
-	WinnerID string
-	Moves    map[string]string
+	Number     int
+	WinnerID   string
+	Moves      map[string]string
+	AutoPicked map[string]bool
 }
 
 type MemStats struct {
@@ -240,7 +241,7 @@ func (m *Memory) FinishMatch(_ context.Context, matchID, winnerID string) error 
 	return nil
 }
 
-func (m *Memory) SaveRound(_ context.Context, matchID string, roundNo int, winnerID string, moves map[string]string) error {
+func (m *Memory) SaveRound(_ context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	mm, ok := m.matches[matchID]
@@ -248,10 +249,12 @@ func (m *Memory) SaveRound(_ context.Context, matchID string, roundNo int, winne
 		return ErrNotFound
 	}
 	copied := make(map[string]string, len(moves))
+	auto := make(map[string]bool, len(moves))
 	for k, v := range moves {
-		copied[k] = v
+		copied[k] = v.Move
+		auto[k] = v.AutoPicked
 	}
-	mm.Rounds = append(mm.Rounds, MemRound{Number: roundNo, WinnerID: winnerID, Moves: copied})
+	mm.Rounds = append(mm.Rounds, MemRound{Number: roundNo, WinnerID: winnerID, Moves: copied, AutoPicked: auto})
 	return nil
 }
 

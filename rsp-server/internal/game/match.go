@@ -1,8 +1,9 @@
 // Package game is the in-memory rules engine for a two-player match.
 //
 // It has no I/O and no time.Ticker. The WebSocket layer (phase 3) owns the
-// wall clock and calls Timeout(roundNo) when a turn expires. That keeps every
-// rule testable as "given these inputs, this is the next state."
+// wall clock and calls Timeout(roundNo) when a turn expires. Anyone without a
+// locked-in card is assigned a random playable move. That keeps every rule
+// testable as "given these inputs, this is the next state."
 //
 // This package is not safe for concurrent use. The room hub should serialize
 // calls for a given match (one goroutine per room, or a mutex around it).
@@ -40,22 +41,25 @@ type Match struct {
 	status      Status
 	round       *openRound
 	history     []ResolvedRound
+	pick        Pick
 }
 
 // openRound is the in-progress round. Moves stay pointer-nil until submitted
-// so "no card yet" is distinct from timeout (which is only applied at resolve).
+// so "no card yet" is distinct from a timeout auto-pick (applied in Timeout).
 type openRound struct {
 	moves [2]*Move
 	ready [2]bool
+	auto  [2]bool
 }
 
 // ResolvedRound is a finished round with both moves revealed. Persist this
 // (phase 3+) — it is the record the opponent was not allowed to see mid-round.
 type ResolvedRound struct {
-	Number int
-	Moves  map[PlayerID]Move
-	Winner PlayerID // empty if Draw
-	Draw   bool
+	Number     int
+	Moves      map[PlayerID]Move
+	AutoPicked map[PlayerID]bool
+	Winner     PlayerID // empty if Draw
+	Draw       bool
 }
 
 // NewMatch starts round 1. winsToFinish is "first to N wins", not "play N games".
@@ -76,6 +80,7 @@ func NewMatch(a, b PlayerID, winsToFinish, turnSeconds int) (*Match, error) {
 		winsNeeded:  winsToFinish,
 		turnSeconds: turnSeconds,
 		players:     [2]PlayerID{a, b},
+		pick:        CryptoPick,
 	}
 	m.openRound()
 	return m, nil
@@ -150,21 +155,38 @@ func (m *Match) Ready(id PlayerID, roundNo int) (*ResolvedRound, error) {
 }
 
 // Timeout ends the current round because the turn clock fired.
-// Anyone without a move is assigned timeout. Submitted-but-not-ready moves still count
-// ("no move = timeout", not "not ready = timeout").
+// Anyone without a move gets a server-side random playable card (auto-picked).
+// Submitted-but-not-ready moves still count.
 func (m *Match) Timeout(roundNo int) (*ResolvedRound, error) {
 	if err := m.guardRound(roundNo); err != nil {
 		return nil, err
+	}
+	pick := m.pick
+	if pick == nil {
+		pick = CryptoPick
+	}
+	for i := 0; i < 2; i++ {
+		if m.round.moves[i] != nil {
+			continue
+		}
+		mv := pick()
+		if !mv.Playable() {
+			mv = MoveRock
+		}
+		copied := mv
+		m.round.moves[i] = &copied
+		m.round.auto[i] = true
 	}
 	return m.resolve(), nil
 }
 
 func (m *Match) resolve() *ResolvedRound {
-	timeout := MoveTimeout
 	var pair [2]Move
 	for i := 0; i < 2; i++ {
 		if m.round.moves[i] == nil {
-			m.round.moves[i] = &timeout
+			// Ready() refuses a missing card; Timeout() fills one. Hitting
+			// nil here is a programming error, not player input.
+			panic("resolve with a missing move")
 		}
 		pair[i] = *m.round.moves[i]
 	}
@@ -180,6 +202,10 @@ func (m *Match) resolve() *ResolvedRound {
 		Moves: map[PlayerID]Move{
 			m.players[0]: pair[0],
 			m.players[1]: pair[1],
+		},
+		AutoPicked: map[PlayerID]bool{
+			m.players[0]: m.round.auto[0],
+			m.players[1]: m.round.auto[1],
 		},
 		Draw: out.Draw,
 	}

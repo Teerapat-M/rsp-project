@@ -156,9 +156,10 @@ type Round struct {
 }
 
 type RoundMove struct {
-	RoundID uuid.UUID `json:"round_id"`
-	UserID  uuid.UUID `json:"user_id"`
-	Move    MoveKind  `json:"move"`
+	RoundID    uuid.UUID `json:"round_id"`
+	UserID     uuid.UUID `json:"user_id"`
+	Move       MoveKind  `json:"move"`
+	AutoPicked bool      `json:"auto_picked"`
 }
 
 type User struct {

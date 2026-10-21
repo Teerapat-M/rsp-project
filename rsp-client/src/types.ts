@@ -44,6 +44,7 @@ export type MatchStatus = 'playing' | 'finished'
 export type ResolvedRound = {
   number: number
   moves: Record<string, Move>
+  autoPicked?: Record<string, boolean>
   winnerId: string | null
   draw: boolean
   pickTimeYouSec?: number
@@ -78,6 +79,8 @@ export type RoundResultView = {
   winsNeeded: number
   yourMove: Move
   opponentMove: Move
+  yourAutoPicked?: boolean
+  opponentAutoPicked?: boolean
   youWon: boolean
   draw: boolean
   scores: Record<string, number>
@@ -121,6 +124,8 @@ export type MatchDetail = HistoryItem & {
     opponent: Move
     result: 'won' | 'lost' | 'draw'
     pickTimeSec: number
+    youAutoPicked?: boolean
+    opponentAutoPicked?: boolean
   }>
 }
 

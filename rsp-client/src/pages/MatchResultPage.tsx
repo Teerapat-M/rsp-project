@@ -1,7 +1,7 @@
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
-import { Hand } from '../components/Hand'
+import { Hand, RandomBadge } from '../components/Hand'
 import { IconTrophy } from '../components/Icons'
 import { useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
@@ -53,8 +53,10 @@ export function MatchResultPage() {
                   <div className="summaryRow" key={h.number}>
                     <span>Round {h.number}</span>
                     {yours && yours !== 'timeout' ? <Hand move={yours as PlayableMove} size={22} /> : '—'}
+                    <RandomBadge show={h.autoPicked?.[user.id]} />
                     <span style={{ color: '#8a909c' }}>vs</span>
                     {opp && opp !== 'timeout' ? <Hand move={opp as PlayableMove} size={22} /> : '—'}
+                    <RandomBadge show={h.autoPicked?.[view.opponentId]} />
                     <span className={`wl ${w ? 'wlW' : 'wlL'}`}>{w ? 'W' : h.draw ? 'D' : 'L'}</span>
                   </div>
                 )

@@ -129,6 +129,12 @@ type Store interface {
 
 	InsertMatch(ctx context.Context, roomID string) (matchID string, err error)
 	FinishMatch(ctx context.Context, matchID, winnerID string) error
-	SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]string) error
+	SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error
 	ApplyMatchStats(ctx context.Context, userID string, won, lost bool, rock, paper, scissors int) error
+}
+
+// RoundMove is one player's revealed throw for a persisted round.
+type RoundMove struct {
+	Move       string
+	AutoPicked bool
 }

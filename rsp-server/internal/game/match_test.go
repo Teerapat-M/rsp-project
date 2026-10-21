@@ -159,29 +159,37 @@ func TestReadyTwice(t *testing.T) {
 func TestTimeoutUsesSubmittedMoveNotReady(t *testing.T) {
 	t.Parallel()
 	m := newTestMatch(t, 2, 10)
-	mustSubmit(t, m, alice, 1, MoveScissors)
-	// bob never acts
+	m.SetPick(func() Move { return MoveRock })
+	mustSubmit(t, m, alice, 1, MovePaper)
+	// bob never acts — timeout assigns rock
 	rr, err := m.Timeout(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rr.Moves[alice] != MoveScissors || rr.Moves[bob] != MoveTimeout {
+	if rr.Moves[alice] != MovePaper || rr.Moves[bob] != MoveRock {
 		t.Fatalf("moves = %+v", rr.Moves)
 	}
+	if rr.AutoPicked[alice] || !rr.AutoPicked[bob] {
+		t.Fatalf("auto = %+v", rr.AutoPicked)
+	}
 	if rr.Winner != alice {
-		t.Fatalf("winner = %s, want alice (bob timed out)", rr.Winner)
+		t.Fatalf("winner = %s, want alice (paper beats auto rock)", rr.Winner)
 	}
 }
 
-func TestTimeoutBothEmptyIsDraw(t *testing.T) {
+func TestTimeoutBothEmptyPicksAndCanDraw(t *testing.T) {
 	t.Parallel()
 	m := newTestMatch(t, 2, 10)
+	m.SetPick(func() Move { return MovePaper })
 	rr, err := m.Timeout(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !rr.Draw || rr.Moves[alice] != MoveTimeout || rr.Moves[bob] != MoveTimeout {
-		t.Fatalf("want double timeout draw, got %+v", rr)
+	if !rr.Draw || rr.Moves[alice] != MovePaper || rr.Moves[bob] != MovePaper {
+		t.Fatalf("want double auto-paper draw, got %+v", rr)
+	}
+	if !rr.AutoPicked[alice] || !rr.AutoPicked[bob] {
+		t.Fatalf("auto = %+v", rr.AutoPicked)
 	}
 	if m.Status() != StatusPlaying {
 		t.Fatal("draw must not finish a first-to-2 match")
@@ -194,6 +202,7 @@ func TestTimeoutBothEmptyIsDraw(t *testing.T) {
 func TestTimeoutOneReadyOneEmpty(t *testing.T) {
 	t.Parallel()
 	m := newTestMatch(t, 2, 10)
+	m.SetPick(func() Move { return MoveRock })
 	mustSubmit(t, m, bob, 1, MovePaper)
 	if _, err := m.Ready(bob, 1); err != nil {
 		t.Fatal(err)
@@ -202,8 +211,33 @@ func TestTimeoutOneReadyOneEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rr.Winner != bob || rr.Moves[alice] != MoveTimeout {
+	if rr.Winner != bob || rr.Moves[alice] != MoveRock || !rr.AutoPicked[alice] || rr.AutoPicked[bob] {
 		t.Fatalf("got %+v", rr)
+	}
+}
+
+func TestTimeoutDoesNotOverwriteSubmitted(t *testing.T) {
+	t.Parallel()
+	m := newTestMatch(t, 2, 10)
+	n := 0
+	m.SetPick(func() Move {
+		n++
+		return MovePaper
+	})
+	mustSubmit(t, m, alice, 1, MoveRock)
+	mustSubmit(t, m, bob, 1, MoveScissors)
+	rr, err := m.Timeout(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("picker called %d times, want 0", n)
+	}
+	if rr.Moves[alice] != MoveRock || rr.Moves[bob] != MoveScissors {
+		t.Fatalf("moves = %+v", rr.Moves)
+	}
+	if rr.AutoPicked[alice] || rr.AutoPicked[bob] {
+		t.Fatalf("auto = %+v", rr.AutoPicked)
 	}
 }
 
@@ -304,7 +338,7 @@ func TestUnknownPlayerAndInvalidMove(t *testing.T) {
 	if err := m.Submit("carol", 1, MoveRock); !errors.Is(err, ErrUnknownPlayer) {
 		t.Fatalf("unknown: %v", err)
 	}
-	if err := m.Submit(alice, 1, MoveTimeout); !errors.Is(err, ErrInvalidMove) {
+	if err := m.Submit(alice, 1, Move("timeout")); !errors.Is(err, ErrInvalidMove) {
 		t.Fatalf("timeout submit: %v", err)
 	}
 	if err := m.Submit(alice, 1, Move("nuke")); !errors.Is(err, ErrInvalidMove) {

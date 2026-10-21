@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Button } from '../components/Button'
-import { Hand, moveLabel } from '../components/Hand'
+import { Hand, moveLabel, RandomBadge } from '../components/Hand'
 import { IconArrowLeft } from '../components/Icons'
 import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
@@ -48,10 +48,12 @@ export function MatchDetailPage() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {r.you !== 'timeout' ? <Hand move={r.you as PlayableMove} size={20} /> : null}
                 {moveLabel(r.you)}
+                <RandomBadge show={r.youAutoPicked} />
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {r.opponent !== 'timeout' ? <Hand move={r.opponent as PlayableMove} size={20} /> : null}
                 {moveLabel(r.opponent)}
+                <RandomBadge show={r.opponentAutoPicked} />
               </span>
               <span className={`badge ${r.result === 'won' ? 'badgeOk' : ''}`} style={r.result === 'lost' ? { background: '#fde8e8', color: '#dc2626' } : undefined}>
                 {r.result === 'won' ? 'Won' : r.result === 'lost' ? 'Lost' : 'Draw'}

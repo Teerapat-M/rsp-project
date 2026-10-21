@@ -40,6 +40,9 @@ func (h *Hub) beginMatchLocked(s *session, playerID string, rematch bool) error 
 	if err != nil {
 		return err
 	}
+	if h.pick != nil {
+		m.SetPick(h.pick)
+	}
 
 	matchID, err := h.store.InsertMatch(context.Background(), s.id)
 	if err != nil {
@@ -342,9 +345,12 @@ func (h *Hub) persistRoundLocked(s *session, rr *game.ResolvedRound) {
 	if s.matchID == "" {
 		return
 	}
-	moves := make(map[string]string, len(rr.Moves))
+	moves := make(map[string]rooms.RoundMove, len(rr.Moves))
 	for id, mv := range rr.Moves {
-		moves[string(id)] = string(mv)
+		moves[string(id)] = rooms.RoundMove{
+			Move:       string(mv),
+			AutoPicked: rr.AutoPicked[id],
+		}
 	}
 	if err := h.store.SaveRound(context.Background(), s.matchID, rr.Number, string(rr.Winner), moves); err != nil {
 		log.Printf("hub: save round: %v", err)

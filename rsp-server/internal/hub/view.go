@@ -41,22 +41,25 @@ type youJSON struct {
 }
 
 type roundJSON struct {
-	Number   int               `json:"number"`
-	Moves    map[string]string `json:"moves"`
-	WinnerID *string           `json:"winnerId"`
-	Draw     bool              `json:"draw"`
+	Number     int               `json:"number"`
+	Moves      map[string]string `json:"moves"`
+	AutoPicked map[string]bool   `json:"autoPicked"`
+	WinnerID   *string           `json:"winnerId"`
+	Draw       bool              `json:"draw"`
 }
 
 type roundResultView struct {
-	RoundNumber  int            `json:"roundNumber"`
-	WinsNeeded   int            `json:"winsNeeded"`
-	YourMove     string         `json:"yourMove"`
-	OpponentMove string         `json:"opponentMove"`
-	YouWon       bool           `json:"youWon"`
-	Draw         bool           `json:"draw"`
-	Scores       map[string]int `json:"scores"`
-	NextRoundIn  int            `json:"nextRoundIn"`
-	MatchOver    bool           `json:"matchOver"`
+	RoundNumber        int            `json:"roundNumber"`
+	WinsNeeded         int            `json:"winsNeeded"`
+	YourMove           string         `json:"yourMove"`
+	OpponentMove       string         `json:"opponentMove"`
+	YourAutoPicked     bool           `json:"yourAutoPicked"`
+	OpponentAutoPicked bool           `json:"opponentAutoPicked"`
+	YouWon             bool           `json:"youWon"`
+	Draw               bool           `json:"draw"`
+	Scores             map[string]int `json:"scores"`
+	NextRoundIn        int            `json:"nextRoundIn"`
+	MatchOver          bool           `json:"matchOver"`
 }
 
 func (h *Hub) playerViewLocked(s *session, you ident.Player) playerView {
@@ -130,7 +133,11 @@ func roundsJSON(in []game.ResolvedRound) []roundJSON {
 		for id, mv := range r.Moves {
 			moves[string(id)] = string(mv)
 		}
-		item := roundJSON{Number: r.Number, Moves: moves, Draw: r.Draw}
+		auto := make(map[string]bool, len(r.AutoPicked))
+		for id, v := range r.AutoPicked {
+			auto[string(id)] = v
+		}
+		item := roundJSON{Number: r.Number, Moves: moves, AutoPicked: auto, Draw: r.Draw}
 		if r.Winner != "" {
 			w := string(r.Winner)
 			item.WinnerID = &w
@@ -155,15 +162,17 @@ func (h *Hub) resultViewLocked(s *session, you ident.Player, rr *game.ResolvedRo
 		pause = 1
 	}
 	return roundResultView{
-		RoundNumber:  rr.Number,
-		WinsNeeded:   s.wins,
-		YourMove:     string(rr.Moves[game.PlayerID(you.ID)]),
-		OpponentMove: string(rr.Moves[game.PlayerID(opp.ID)]),
-		YouWon:       rr.Winner == game.PlayerID(you.ID),
-		Draw:         rr.Draw,
-		Scores:       scores,
-		NextRoundIn:  pause,
-		MatchOver:    over,
+		RoundNumber:        rr.Number,
+		WinsNeeded:         s.wins,
+		YourMove:           string(rr.Moves[game.PlayerID(you.ID)]),
+		OpponentMove:       string(rr.Moves[game.PlayerID(opp.ID)]),
+		YourAutoPicked:     rr.AutoPicked[game.PlayerID(you.ID)],
+		OpponentAutoPicked: rr.AutoPicked[game.PlayerID(opp.ID)],
+		YouWon:             rr.Winner == game.PlayerID(you.ID),
+		Draw:               rr.Draw,
+		Scores:             scores,
+		NextRoundIn:        pause,
+		MatchOver:          over,
 	}
 }
 

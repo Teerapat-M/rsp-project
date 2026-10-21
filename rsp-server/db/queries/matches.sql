@@ -14,8 +14,8 @@ VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: InsertRoundMove :exec
-INSERT INTO round_moves (round_id, user_id, move)
-VALUES ($1, $2, $3);
+INSERT INTO round_moves (round_id, user_id, move, auto_picked)
+VALUES ($1, $2, $3, $4);
 
 -- name: ApplyMatchStats :exec
 INSERT INTO user_stats (

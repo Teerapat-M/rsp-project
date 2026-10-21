@@ -222,7 +222,7 @@ func TestSubmitReadyHidesMovesThenResolves(t *testing.T) {
 func TestTimeoutNoMoveIsDrawAndLateTimerIgnored(t *testing.T) {
 	t.Parallel()
 	clk := &fakeClock{}
-	h, _ := playHub(t, clk)
+	h, _ := playHubPick(t, clk, func() game.Move { return game.MoveRock })
 	room, host, guest, aliceC, bobC := twoSeated(t, h)
 	if err := h.StartMatch(room.ID, host.ID); err != nil {
 		t.Fatal(err)
@@ -240,7 +240,13 @@ func TestTimeoutNoMoveIsDrawAndLateTimerIgnored(t *testing.T) {
 	}
 	body, _ := res["result"].(map[string]any)
 	if body["draw"] != true {
-		t.Fatalf("double timeout should draw: %+v", body)
+		t.Fatalf("double auto-pick of rock should draw: %+v", body)
+	}
+	if body["yourAutoPicked"] != true || body["opponentAutoPicked"] != true {
+		t.Fatalf("both should be auto-picked: %+v", body)
+	}
+	if body["yourMove"] != "rock" || body["opponentMove"] != "rock" {
+		t.Fatalf("moves %+v", body)
 	}
 
 	// Next round is 2 (first-to-2). A late round-1 timer must be a no-op.
@@ -504,7 +510,7 @@ func TestLeaveMidMatchForfeits(t *testing.T) {
 func TestTimeoutUsesSubmittedNotReadyMove(t *testing.T) {
 	t.Parallel()
 	clk := &fakeClock{}
-	h, _ := playHub(t, clk)
+	h, st := playHubPick(t, clk, func() game.Move { return game.MoveScissors })
 	room, host, _, aliceC, bobC := twoSeated(t, h)
 	if err := h.StartMatch(room.ID, host.ID); err != nil {
 		t.Fatal(err)
@@ -516,8 +522,66 @@ func TestTimeoutUsesSubmittedNotReadyMove(t *testing.T) {
 	msgs := drain(aliceC)
 	res := lastType(msgs, "round.resolved")
 	body, _ := res["result"].(map[string]any)
-	if body["yourMove"] != "rock" || body["opponentMove"] != "timeout" || body["youWon"] != true {
+	if body["yourMove"] != "rock" || body["opponentMove"] != "scissors" || body["youWon"] != true {
 		t.Fatalf("%+v", body)
+	}
+	if body["yourAutoPicked"] != false || body["opponentAutoPicked"] != true {
+		t.Fatalf("auto flags %+v", body)
+	}
+	s := h.get(room.ID)
+	s.mu.Lock()
+	mid := s.matchID
+	s.mu.Unlock()
+	got, ok := st.Match(mid)
+	if !ok || len(got.Rounds) != 1 {
+		t.Fatalf("persisted %+v ok=%v", got, ok)
+	}
+	auto := 0
+	for _, v := range got.Rounds[0].AutoPicked {
+		if v {
+			auto++
+		}
+	}
+	if auto != 1 {
+		t.Fatalf("want 1 auto-picked move, got %+v", got.Rounds[0].AutoPicked)
+	}
+}
+
+func playHubPick(t *testing.T, clk *fakeClock, pick game.Pick) (*Hub, *rooms.Memory) {
+	t.Helper()
+	st := rooms.NewMemory()
+	h := New(st, Config{
+		Grace:       50 * time.Millisecond,
+		After:       clk.After,
+		ResultPause: 3 * time.Second,
+		Pick:        pick,
+	})
+	return h, st
+}
+
+func TestLateSocketGetsMatchStarted(t *testing.T) {
+	t.Parallel()
+	clk := &fakeClock{}
+	h, _ := playHub(t, clk)
+	room, host, _, aliceC, bobC := twoSeated(t, h)
+	h.detach(aliceC)
+	h.detach(bobC)
+	if err := h.StartMatch(room.ID, host.ID); err != nil {
+		t.Fatal(err)
+	}
+	s := h.get(room.ID)
+	c := h.attach(s, host, nil)
+	if c == nil {
+		t.Fatal("attach")
+	}
+	msgs := drain(c)
+	started := lastType(msgs, "match.started")
+	if started == nil {
+		t.Fatalf("late socket should get match.started, got %+v", msgs)
+	}
+	v := viewOf(started)
+	if v["roundNumber"] != float64(1) {
+		t.Fatalf("snapshot %+v", started)
 	}
 }
 

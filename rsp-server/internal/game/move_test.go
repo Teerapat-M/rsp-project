@@ -23,13 +23,7 @@ func TestResolveTable(t *testing.T) {
 		{name: "paper draw", a: MovePaper, b: MovePaper, wantDraw: true},
 		{name: "scissors draw", a: MoveScissors, b: MoveScissors, wantDraw: true},
 
-		{name: "timeout vs timeout is a draw", a: MoveTimeout, b: MoveTimeout, wantDraw: true},
-		{name: "timeout loses to rock", a: MoveTimeout, b: MoveRock, wantWinner: 1},
-		{name: "timeout loses to paper", a: MoveTimeout, b: MovePaper, wantWinner: 1},
-		{name: "timeout loses to scissors", a: MoveTimeout, b: MoveScissors, wantWinner: 1},
-		{name: "rock beats timeout", a: MoveRock, b: MoveTimeout, wantWinner: 0},
-		{name: "paper beats timeout", a: MovePaper, b: MoveTimeout, wantWinner: 0},
-		{name: "scissors beat timeout", a: MoveScissors, b: MoveTimeout, wantWinner: 0},
+		{name: "timeout is not a move", a: Move("timeout"), b: MoveRock, wantErr: ErrInvalidMove},
 
 		{name: "invalid a", a: Move("lizard"), b: MoveRock, wantErr: ErrInvalidMove},
 		{name: "invalid b", a: MoveRock, b: Move("spock"), wantErr: ErrInvalidMove},
@@ -64,7 +58,22 @@ func TestResolveTable(t *testing.T) {
 
 func TestMovePlayable(t *testing.T) {
 	t.Parallel()
-	if !MoveRock.Playable() || MoveTimeout.Playable() {
-		t.Fatal("humans submit rock/paper/scissors; timeout is server-assigned")
+	if !MoveRock.Playable() || Move("timeout").Playable() {
+		t.Fatal("humans submit rock/paper/scissors; timeout is not a move")
+	}
+}
+
+func TestCryptoPickIsPlayable(t *testing.T) {
+	t.Parallel()
+	seen := map[Move]int{}
+	for i := 0; i < 48; i++ {
+		mv := CryptoPick()
+		if !mv.Playable() {
+			t.Fatalf("CryptoPick returned %q", mv)
+		}
+		seen[mv]++
+	}
+	if len(seen) < 2 {
+		t.Fatalf("expected more than one move over 48 draws, got %v", seen)
 	}
 }

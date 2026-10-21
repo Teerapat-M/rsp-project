@@ -16,7 +16,7 @@ import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card, FaceDown } from '../components/Card'
-import { HAND_ORDER, Hand, moveLabel } from '../components/Hand'
+import { HAND_ORDER, Hand, moveLabel, RandomBadge } from '../components/Hand'
 import { Modal } from '../components/Modal'
 import { Timer } from '../components/Timer'
 import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
@@ -121,7 +121,16 @@ function PlaySurface({ demo }: { demo: string | null }) {
             )}
           </div>
 
-          <DropSlot placed={placed} locked={locked} over={over} timeup={timeup} dc={dc} opponentName={view?.opponentName} reconnect={view?.reconnectSeconds} />
+          <DropSlot
+            placed={placed}
+            locked={locked}
+            over={over}
+            timeup={timeup}
+            dc={dc}
+            auto={Boolean(view?.history[view.history.length - 1]?.autoPicked?.[user.id]) && timeup}
+            opponentName={view?.opponentName}
+            reconnect={view?.reconnectSeconds}
+          />
 
           <div className="handRow">
             {HAND_ORDER.map((m) => {
@@ -199,6 +208,7 @@ function DropSlot({
   over,
   timeup,
   dc,
+  auto,
   opponentName,
   reconnect,
 }: {
@@ -207,6 +217,7 @@ function DropSlot({
   over: boolean
   timeup: boolean
   dc: boolean
+  auto?: boolean
   opponentName?: string
   reconnect?: number | null
 }) {
@@ -235,7 +246,7 @@ function DropSlot({
   }
   if (timeup) {
     title = "Time's up!"
-    sub = 'No card played — this round goes to your opponent'
+    sub = 'A random card will be played for you'
   }
   if (dc) {
     title = `${opponentName ?? 'Opponent'} lost connection`
@@ -252,6 +263,7 @@ function DropSlot({
               {locked ? <IconLock size={14} color="#16A34A" /> : null} {title}
             </h3>
             <p>{sub}</p>
+            <RandomBadge show={auto} />
           </div>
         </>
       ) : (
@@ -347,30 +359,20 @@ function RoundResult() {
           <div className={`vsPick ${roundResult.youWon ? 'win' : ''}`}>
             <span>You</span>
             <div className="bigCard">
-              {roundResult.yourMove === 'timeout' ? (
-                <span>Timeout</span>
-              ) : (
-                <>
-                  <Hand move={roundResult.yourMove as PlayableMove} size={72} />
-                  {moveLabel(roundResult.yourMove)}
-                </>
-              )}
+              <Hand move={roundResult.yourMove as PlayableMove} size={72} />
+              {moveLabel(roundResult.yourMove)}
             </div>
+            <RandomBadge show={roundResult.yourAutoPicked} />
             {roundResult.youWon ? <span className="badge badgeOk">Winner</span> : null}
           </div>
           <div className="vs">VS</div>
           <div className={`vsPick ${!roundResult.youWon && !roundResult.draw ? 'win' : ''}`}>
             <span>Opponent</span>
             <div className="bigCard">
-              {roundResult.opponentMove === 'timeout' ? (
-                <span>Timeout</span>
-              ) : (
-                <>
-                  <Hand move={roundResult.opponentMove as PlayableMove} size={72} />
-                  {moveLabel(roundResult.opponentMove)}
-                </>
-              )}
+              <Hand move={roundResult.opponentMove as PlayableMove} size={72} />
+              {moveLabel(roundResult.opponentMove)}
             </div>
+            <RandomBadge show={roundResult.opponentAutoPicked} />
             {!roundResult.youWon && !roundResult.draw ? (
               <span className="badge badgeOk">Winner</span>
             ) : (

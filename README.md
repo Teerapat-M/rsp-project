@@ -97,7 +97,7 @@ curl -s -X POST http://localhost:8080/rooms/<id>/start -H 'X-Player-ID: alice'
 # {"type":"ready"}
 ```
 
-The server hides each move until both are Ready or `turnSeconds` elapses. Timeout with no card loses to a real throw; both timeout is a draw. First to `winsToFinish` ends the match. Rounds and the match are written to Postgres; `user_stats` updates at match end.
+The server hides each move until both are Ready or `turnSeconds` elapses. Anyone without a card when the timer fires gets a random rock/paper/scissors (`auto_picked`). First to `winsToFinish` ends the match. Rounds and the match are written to Postgres; `user_stats` updates at match end.
 
 Disconnect mid-match pauses the clock (grace, default 20s). Come back in time and play continues; otherwise it is a forfeit. After `match.finished`, send `{"type":"play_again"}` (both players) for a rematch, or `leave` to return to the lobby.
 

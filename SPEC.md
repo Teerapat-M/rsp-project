@@ -45,7 +45,7 @@ Google and password can later be linked on the same user (`auth_providers` + `pa
 1. Each player drags one of rock / paper / scissors into a drop slot, then presses **Ready**.
 2. The **server is authoritative**. It stores both choices but **does not reveal** a player's move to the opponent until the round resolves.
 3. The round resolves when **both are Ready**, or when the **turn timer ends**.
-4. No submitted move when the timer ends → `timeout`. Timeout **loses the round** against a real move. **Both timeout → draw**.
+4. No submitted move when the timer ends → the server assigns a **random** rock / paper / scissors (`auto_picked`). The round then resolves with the usual cycle. A submitted-but-not-ready card still counts.
 5. Score is round wins. Play continues until one player reaches `wins_to_finish`.
 
 A player may change their card **until** they press Ready. Ready without a card is rejected. After Ready, the move is locked.
@@ -57,7 +57,7 @@ The clock is owned by the server process (WebSocket layer), not by the pure rule
 Per user, persisted at round/match end:
 
 - matches played / wins / losses
-- how often they played rock / paper / scissors (timeouts do not increment a throw count)
+- how often they played rock / paper / scissors (auto-picked throws count)
 - match history (rooms → matches → rounds → moves)
 
 ---
@@ -77,7 +77,7 @@ PostgreSQL. UUIDs for public ids. `rsp-server/db/migrations/000001_init` then `0
 | `room_players` | Who joined which room. |
 | `matches` | One game series in a room. `winner_id` null until someone wins (or stays null if abandoned). |
 | `rounds` | `winner_id` null means draw. |
-| `round_moves` | `rock` / `paper` / `scissors` / `timeout`. |
+| `round_moves` | `rock` / `paper` / `scissors`, plus `auto_picked` when the timer chose it. |
 
 Adjustments from the original draft (kept small):
 
@@ -152,7 +152,7 @@ Each phase is one PR. Do not fold later phases into this one.
 
 - [x] Spec and roadmap in `SPEC.md`
 - [x] `rsp-server/` (`cmd/`, `internal/`, `go.mod`, `Makefile`, Compose Postgres, migrations, `.env.example`), README
-- [x] `internal/game` covers move resolution, timeout, round/match state, `wins_to_finish`
+- [x] `internal/game` covers move resolution, timeout auto-pick, round/match state, `wins_to_finish`
 - [x] Table-driven unit tests, `go test ./...` passing
 - [x] `docker compose up` starts Postgres and applies migrations
 
@@ -174,7 +174,7 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] `POST /rooms/:id/start` (host, two players) starts an in-memory match and persists a `matches` row
 - [x] WS `submit` / `ready` while playing; moves stay hidden until both Ready or the turn timer fires
 - [x] Server-side countdown using the room's `turnSeconds`; `Timeout(roundNo)` so a late timer cannot resolve a later round
-- [x] Timeout with no card loses to a real throw; both timeout → draw; first to `winsToFinish` ends the match
+- [x] Timeout with no card assigns a random playable move (`auto_picked`); first to `winsToFinish` ends the match
 - [x] Persist `rounds` + `round_moves`; update `user_stats` when the match ends
 - [x] Mid-match disconnect: grace, pause, then forfeit; `claim_win` if the opponent is already gone; rematch via `play_again` or leave to lobby
 - [x] `docs/ws-protocol.md` lists match events; table-driven hub tests plus a two-player WS round; `make test` / `make test-race`

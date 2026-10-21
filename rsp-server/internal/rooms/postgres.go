@@ -200,7 +200,7 @@ func (p *Postgres) FinishMatch(ctx context.Context, matchID, winnerID string) er
 	return p.q.FinishMatch(ctx, sqlcdb.FinishMatchParams{ID: mid, WinnerID: winner})
 }
 
-func (p *Postgres) SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]string) error {
+func (p *Postgres) SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error {
 	mid, err := uuid.Parse(matchID)
 	if err != nil {
 		return ErrNotFound
@@ -227,9 +227,10 @@ func (p *Postgres) SaveRound(ctx context.Context, matchID string, roundNo int, w
 			return err
 		}
 		if err := p.q.InsertRoundMove(ctx, sqlcdb.InsertRoundMoveParams{
-			RoundID: round.ID,
-			UserID:  userID,
-			Move:    sqlcdb.MoveKind(mv),
+			RoundID:    round.ID,
+			UserID:     userID,
+			Move:       sqlcdb.MoveKind(mv.Move),
+			AutoPicked: mv.AutoPicked,
 		}); err != nil {
 			return err
 		}

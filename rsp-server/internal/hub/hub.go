@@ -40,6 +40,9 @@ type Config struct {
 	ResultPause time.Duration
 	OnPlay      PlayHandler
 	OnStart     StartHandler
+	// Pick replaces crypto/rand when a turn times out with no card. Tests
+	// inject a stub so auto-picks are deterministic.
+	Pick game.Pick
 }
 
 type Hub struct {
@@ -49,6 +52,7 @@ type Hub struct {
 	resultPause time.Duration
 	onPlay      PlayHandler
 	onStart     StartHandler
+	pick        game.Pick
 
 	mu     sync.Mutex
 	rooms  map[string]*session
@@ -78,6 +82,7 @@ func New(store rooms.Store, cfg Config) *Hub {
 		resultPause: pause,
 		onPlay:      cfg.OnPlay,
 		onStart:     cfg.OnStart,
+		pick:        cfg.Pick,
 		rooms:       make(map[string]*session),
 		byCode:      make(map[string]*session),
 	}
@@ -564,7 +569,16 @@ func (h *Hub) attach(s *session, player ident.Player, conn *websocket.Conn) *cli
 	}
 	s.broadcastLocked(event{"type": "room.updated", "room": snap})
 	if s.match != nil {
-		s.sendToLocked(player.ID, event{"type": "view", "view": h.playerViewLocked(s, player)})
+		// Late and reconnecting sockets were not in the room at POST /start,
+		// so they never saw match.started. Send the same snapshot now.
+		typ := "view"
+		switch s.match.Status() {
+		case game.StatusPlaying:
+			typ = "match.started"
+		case game.StatusFinished:
+			typ = "match.finished"
+		}
+		s.sendToLocked(player.ID, event{"type": typ, "view": h.playerViewLocked(s, player)})
 		if reconnected && s.match.Status() == game.StatusPlaying && s.allConnectedLocked() {
 			s.paused = false
 			h.startClockLocked(s)

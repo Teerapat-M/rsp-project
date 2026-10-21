@@ -15,11 +15,16 @@ function beats(a: Move, b: Move): boolean {
 export type Outcome = { draw: true; winner: null } | { draw: false; winner: 0 | 1 }
 
 export function resolve(a: Move, b: Move): Outcome {
+  if (!playable(a) || !playable(b)) throw new Error('invalid move')
   if (a === b) return { draw: true, winner: null }
-  if (a === 'timeout') return { draw: false, winner: 1 }
-  if (b === 'timeout') return { draw: false, winner: 0 }
   if (beats(a, b)) return { draw: false, winner: 0 }
   return { draw: false, winner: 1 }
+}
+
+const PLAYABLE: PlayableMove[] = ['rock', 'paper', 'scissors']
+
+export function randomPick(): PlayableMove {
+  return PLAYABLE[Math.floor(Math.random() * PLAYABLE.length)] ?? 'rock'
 }
 
 export type LiveMatch = {
@@ -31,9 +36,11 @@ export type LiveMatch = {
   status: 'playing' | 'finished'
   moves: [Move | null, Move | null]
   ready: [boolean, boolean]
+  auto: [boolean, boolean]
   history: Array<{
     number: number
     moves: [Move, Move]
+    autoPicked: [boolean, boolean]
     winnerId: string | null
     draw: boolean
   }>
@@ -55,6 +62,7 @@ export function newMatch(
     status: 'playing',
     moves: [null, null],
     ready: [false, false],
+    auto: [false, false],
     history: [],
     pickStartedAt: Date.now(),
   }
@@ -86,13 +94,21 @@ export function ready(m: LiveMatch, id: string): boolean {
   return false
 }
 
-export function timeout(m: LiveMatch): void {
+export function timeout(m: LiveMatch, pick: () => PlayableMove = randomPick): void {
   if (m.status !== 'playing') return
+  if (!m.moves[0]) {
+    m.moves[0] = pick()
+    m.auto[0] = true
+  }
+  if (!m.moves[1]) {
+    m.moves[1] = pick()
+    m.auto[1] = true
+  }
   settle(m)
 }
 
 function settle(m: LiveMatch): void {
-  const pair: [Move, Move] = [m.moves[0] ?? 'timeout', m.moves[1] ?? 'timeout']
+  const pair: [Move, Move] = [m.moves[0] as Move, m.moves[1] as Move]
   const out = resolve(pair[0], pair[1])
   let winnerId: string | null = null
   if (!out.draw) {
@@ -102,6 +118,7 @@ function settle(m: LiveMatch): void {
   m.history.push({
     number: m.roundNo,
     moves: pair,
+    autoPicked: [...m.auto] as [boolean, boolean],
     winnerId,
     draw: out.draw,
   })
@@ -111,6 +128,7 @@ function settle(m: LiveMatch): void {
     m.roundNo += 1
     m.moves = [null, null]
     m.ready = [false, false]
+    m.auto = [false, false]
     m.pickStartedAt = Date.now()
   }
 }
@@ -122,10 +140,6 @@ export function selfCheck(): void {
   if (r2.draw || r2.winner !== 0) throw new Error('paper should beat rock')
   const r3 = resolve('scissors', 'paper')
   if (r3.draw || r3.winner !== 0) throw new Error('scissors should beat paper')
-  const r4 = resolve('rock', 'timeout')
-  if (r4.draw || r4.winner !== 0) throw new Error('throw beats timeout')
-  const r5 = resolve('timeout', 'timeout')
-  if (!r5.draw) throw new Error('double timeout is a draw')
   const m = newMatch('a', 'b', 2, 10)
   submit(m, 'a', 'rock')
   submit(m, 'b', 'scissors')
@@ -133,6 +147,9 @@ export function selfCheck(): void {
   ready(m, 'b')
   if (m.scores[0] !== 1) throw new Error('first round should score')
   submit(m, 'a', 'paper')
-  timeout(m)
-  if (m.scores[0] < 2) throw new Error('timeout should award the second win')
+  timeout(m, () => 'rock')
+  if (m.scores[0] < 2) throw new Error('auto-pick rock should lose to paper')
+  if (!m.history[1]?.autoPicked[1] || m.history[1]?.autoPicked[0]) {
+    throw new Error('only the empty seat is auto-picked')
+  }
 }
