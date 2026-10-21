@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
+import { PageStatus } from '../components/PageStatus'
 import { IconChevronRight } from '../components/Icons'
 import { api } from '../api'
 import { formatPlayedAt } from '../lib/format'
@@ -12,6 +13,8 @@ export function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([])
   const [total, setTotal] = useState(0)
   const [cursor, setCursor] = useState<string | undefined>(undefined)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   async function load(next?: string) {
     const page = await api.getHistory(next)
@@ -22,13 +25,21 @@ export function HistoryPage() {
 
   useEffect(() => {
     load()
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load history'))
+      .finally(() => setLoading(false))
   }, [])
+
+  if (error) return <PageStatus>{error}</PageStatus>
+  if (loading) return <PageStatus>Loading history…</PageStatus>
 
   return (
     <AppShell>
       <div className="pageCenter">
         <h1 className="heroTitle">Match History</h1>
         <p className="heroSub">Your recent matches</p>
+        {items.length === 0 ? (
+          <p className="hint">No matches yet. Finish a game to see it here.</p>
+        ) : null}
         <div className="panel historyList">
           {items.map((m, i) => (
             <Link key={m.id} className={`historyRow ${i === 0 ? 'active' : ''}`} to={`/history/${m.id}`}>

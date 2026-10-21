@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api'
 import { secondsUntil, watchNextRound } from '../lib/nextRound'
+import { writeActiveRoom } from '../lib/playRoom'
+import { RECONNECT_GRACE_SEC, RECONNECT_MAX_ATTEMPTS, reconnectDelayMs } from '../lib/reconnect'
+import { applyLobbyReady, applyRoomSnapshot } from '../lib/roomSync'
 import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } from '../types'
 
 type JoinError = { code: 'WRONG_PASSCODE' | 'ROOM_FULL'; passcode: string; message: string } | null
 
-type GameCtx = {
+export type GameCtx = {
   room: Room | null
   view: PlayerView | null
   remaining: number | null
@@ -13,6 +16,7 @@ type GameCtx = {
   nextRoundLeft: number | null
   connectionLost: boolean
   reconnectAttempt: number
+  reconnectGraceLeft: number
   playAgainReady: number
   joinError: JoinError
   createRoom: (winsToFinish: number, turnSeconds: number) => Promise<Room>
@@ -24,6 +28,7 @@ type GameCtx = {
   loadRoom: (roomId: string) => Promise<Room>
   submitMove: (move: PlayableMove) => void
   readyUp: () => void
+  setLobbyReady: (ready: boolean) => void
   claimWin: () => void
   playAgain: () => void
   retryConnection: () => void
@@ -38,21 +43,38 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [roundResult, setRoundResult] = useState<RoundResultView | null>(null)
   const [nextRoundLeft, setNextRoundLeft] = useState<number | null>(null)
   const [connectionLost, setConnectionLost] = useState(false)
-  const [reconnectAttempt, setReconnectAttempt] = useState(2)
+  const [reconnectAttempt, setReconnectAttempt] = useState(0)
+  const [reconnectGraceLeft, setReconnectGraceLeft] = useState(RECONNECT_GRACE_SEC)
   const [playAgainReady, setPlayAgainReady] = useState(0)
   const [joinError, setJoinError] = useState<JoinError>(null)
   const conn = useRef<WsConnection | null>(null)
   const roomId = useRef<string | null>(null)
+  const retryRef = useRef(0)
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const attachRef = useRef<(id: string) => void>(() => {})
+  const liveRef = useRef(false)
+  const connectingRef = useRef(false)
 
   const attach = useCallback((id: string) => {
+    if (roomId.current === id && conn.current && (liveRef.current || connectingRef.current)) {
+      writeActiveRoom(id)
+      return
+    }
     conn.current?.close()
     roomId.current = id
+    liveRef.current = false
+    connectingRef.current = true
+    writeActiveRoom(id)
     conn.current = api.connectMatch(id, {
       onEvent: (ev) => {
         if (ev.type === 'room.updated') {
-          setRoom({ ...ev.room, players: ev.room.players.map((p) => ({ ...p })) })
+          setRoom((prev) => applyRoomSnapshot(prev, ev.room))
+        }
+        if (ev.type === 'lobby.ready') {
+          setRoom((prev) => applyLobbyReady(prev, ev))
         }
         if (ev.type === 'match.started') {
+          if (roomId.current) writeActiveRoom(roomId.current)
           setView(ev.view)
           setRoundResult(null)
           setNextRoundLeft(null)
@@ -80,6 +102,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setRemaining(ev.view.remainingSeconds)
         }
         if (ev.type === 'match.finished') {
+          writeActiveRoom(null)
           setView(ev.view)
           setRoundResult(null)
           setNextRoundLeft(null)
@@ -87,14 +110,56 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (ev.type === 'opponent.disconnected' || ev.type === 'opponent.reconnected') {
           setView(ev.view)
         }
-        if (ev.type === 'connection.lost') setConnectionLost(true)
-        if (ev.type === 'connection.restored') setConnectionLost(false)
+        if (ev.type === 'connection.lost') {
+          liveRef.current = false
+          connectingRef.current = false
+          setConnectionLost(true)
+          setReconnectGraceLeft(RECONNECT_GRACE_SEC)
+          const next = retryRef.current + 1
+          retryRef.current = next
+          setReconnectAttempt(next)
+          if (retryTimer.current) clearTimeout(retryTimer.current)
+          if (next <= RECONNECT_MAX_ATTEMPTS && roomId.current) {
+            const rid = roomId.current
+            retryTimer.current = setTimeout(() => attachRef.current(rid), reconnectDelayMs(next - 1))
+          }
+        }
+        if (ev.type === 'connection.restored') {
+          liveRef.current = true
+          connectingRef.current = false
+          setConnectionLost(false)
+          setReconnectGraceLeft(RECONNECT_GRACE_SEC)
+          retryRef.current = 0
+          setReconnectAttempt(0)
+          if (retryTimer.current) {
+            clearTimeout(retryTimer.current)
+            retryTimer.current = null
+          }
+        }
         if (ev.type === 'play_again.waiting') setPlayAgainReady(ev.ready)
       },
     })
   }, [])
 
-  useEffect(() => () => conn.current?.close(), [])
+  useEffect(() => {
+    attachRef.current = attach
+  })
+
+  useEffect(() => {
+    if (!connectionLost) return
+    const id = setInterval(() => {
+      setReconnectGraceLeft((n) => Math.max(0, n - 1))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [connectionLost])
+
+  useEffect(
+    () => () => {
+      if (retryTimer.current) clearTimeout(retryTimer.current)
+      conn.current?.close()
+    },
+    [],
+  )
 
   // Server broadcasts round.started / match.finished after the result pause.
   // Tick from nextRoundAt so both clients show the same 3, 2, 1. If that event
@@ -122,6 +187,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       nextRoundLeft,
       connectionLost,
       reconnectAttempt,
+      reconnectGraceLeft,
       playAgainReady,
       joinError,
       createRoom: async (winsToFinish, turnSeconds) => {
@@ -152,8 +218,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       },
       clearJoinError: () => setJoinError(null),
       leaveRoom: async () => {
-        if (roomId.current) await api.leaveRoom(roomId.current)
+        const id = roomId.current
+        roomId.current = null
+        liveRef.current = false
+        connectingRef.current = false
+        writeActiveRoom(null)
+        if (id) await api.leaveRoom(id)
         conn.current?.close()
+        conn.current = null
         setRoom(null)
         setView(null)
         setRoundResult(null)
@@ -165,21 +237,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
       attach,
       loadRoom: async (id) => {
         const r = await api.getRoom(id)
-        setRoom(r)
+        setRoom((prev) => applyRoomSnapshot(prev, r))
         attach(id)
         return r
       },
       submitMove: (move) => conn.current?.send({ type: 'submit', move }),
       readyUp: () => conn.current?.send({ type: 'ready' }),
+      setLobbyReady: (ready) => conn.current?.send({ type: ready ? 'lobby.ready' : 'lobby.unready' }),
       claimWin: () => conn.current?.send({ type: 'claim_win' }),
       playAgain: () => conn.current?.send({ type: 'play_again' }),
       retryConnection: () => {
-        setReconnectAttempt((n) => n + 1)
+        liveRef.current = false
+        connectingRef.current = false
+        retryRef.current = 0
+        setReconnectAttempt(0)
         setConnectionLost(false)
         if (roomId.current) attach(roomId.current)
       },
     }),
-    [room, view, remaining, roundResult, nextRoundLeft, connectionLost, reconnectAttempt, playAgainReady, joinError, attach],
+    [room, view, remaining, roundResult, nextRoundLeft, connectionLost, reconnectAttempt, reconnectGraceLeft, playAgainReady, joinError, attach],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

@@ -191,6 +191,24 @@ func TestGoogleDisabledAndStub(t *testing.T) {
 	}
 }
 
+func TestGoogleDoesNotLinkExistingEmail(t *testing.T) {
+	t.Parallel()
+	s, _ := testSvc(t)
+	ctx := context.Background()
+	sess, err := s.Register(ctx, "pw_user", "password", "same@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.google = stubGoogle{id: GoogleIdentity{Subject: "g-99", Email: "same@example.com", Name: "Goo"}}
+	if _, err := s.Google(ctx, "id-token"); !errors.Is(err, ErrEmailTaken) {
+		t.Fatalf("google must not take over a password account: %v", err)
+	}
+	again, err := s.Login(ctx, "pw_user", "password", false)
+	if err != nil || again.User.ID != sess.User.ID {
+		t.Fatalf("password login after google attempt: %+v %v", again, err)
+	}
+}
+
 func TestRegisterValidation(t *testing.T) {
 	t.Parallel()
 	s, _ := testSvc(t)
@@ -200,6 +218,9 @@ func TestRegisterValidation(t *testing.T) {
 	}
 	if _, err := s.Register(ctx, "good_name", "123", ""); !errors.Is(err, ErrValidation) {
 		t.Fatalf("short password: %v", err)
+	}
+	if _, err := s.Register(ctx, "good_name", "secret1", ""); !errors.Is(err, ErrValidation) {
+		t.Fatalf("7-char password: %v", err)
 	}
 	if _, err := s.Register(ctx, "good_name", "password", "not-an-email"); !errors.Is(err, ErrValidation) {
 		t.Fatalf("email: %v", err)

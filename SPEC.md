@@ -26,11 +26,11 @@ Three ways in. Every path mints a short-lived **access JWT**. The server trusts 
 
 **Forgot password:** submit the account email. If it matches a password user, insert a one-use `password_reset_tokens` row (hashed, short TTL) and send a link. In **dev**, skip a real mailer: log the reset URL. Always return the same response whether the email exists or not (no account enumeration). Users with no email cannot reset this way.
 
-**Passwords:** hash with **bcrypt** (`golang.org/x/crypto/bcrypt`, cost ≥ 10). Never store or log the plaintext.
+**Passwords:** hash with **bcrypt** (`golang.org/x/crypto/bcrypt`, cost ≥ 10). Minimum length 8. Never store or log the plaintext.
 
 **Guest → registered (upgrade):** keep the same `users.id` so stats and match history stay. An authenticated guest sets username + password (+ optional email), then `is_guest = false`. Reject if the username (or email) is taken. This is simpler than merging a guest into some other account.
 
-Google and password can later be linked on the same user (`auth_providers` + `password_hash`). Phase 4 ships the three entry paths, remember-me, reset, and guest upgrade. Linking Google onto an existing password user can wait if time is tight.
+Google and password can later be linked on the same user (`auth_providers` + `password_hash`). Sign-in with Google does **not** auto-link an existing password account just because the emails match (that is an account-takeover). Linking is an explicit later step. **Passwords** are at least 8 characters.
 
 ### Rooms
 
@@ -85,7 +85,7 @@ Adjustments from the original draft (kept small):
 - Username/password, refresh tokens, and reset tokens added in v2 (Penpot review). Email is no longer required for every non-guest — password users may omit it.
 - `rooms.passcode` is exactly six digits (`^[0-9]{6}$`), unique among non-closed rooms.
 - Check constraints: `wins_to_finish >= 1`, `turn_seconds >= 1`, guest has no credentials.
-- Indexes on FKs used by history queries (`matches.room_id`, `rounds.match_id`, `auth_providers.user_id`).
+- Indexes on FKs used by history queries (`matches.room_id`, `rounds.match_id`, `auth_providers.user_id`, `room_players.user_id`).
 
 Active gameplay (hidden moves, ready flags, remaining seconds) is **not** in these tables. It lives on the in-memory match in the Go server.
 
@@ -94,7 +94,7 @@ Active gameplay (hidden moves, ready flags, remaining seconds) is **not** in the
 ## Architecture (whole project)
 
 ```
-Browser (React + Vite + dnd-kit, /web)
+Browser (React + Vite + dnd-kit, rsp-client/)
     │  REST: auth (guest / password / Google), create/join room, stats
     │  WebSocket: match events
     ▼
@@ -119,7 +119,7 @@ Layout:
 ```
 rsp-server/cmd/server     process entry (HTTP)
 rsp-server/internal/game  pure rules — no I/O, no clocks
-rsp-server/internal/ident TEMPORARY player identity (X-Player-ID / dev guest token)
+rsp-server/internal/ident player snapshot (JWT in production; X-Player-ID only in dev)
 rsp-server/internal/passcode  6-digit codes
 rsp-server/internal/rooms create/join/leave + sqlc store
 rsp-server/internal/hub   in-memory live rooms + WebSocket
@@ -142,7 +142,7 @@ rsp-client/               React app (Vite proxies /api and /ws to the Go server)
 | **3 — countdown / ready / resolve** | Server timer, submit + ready, hide moves, resolve, `wins_to_finish`, persist round/match rows | Auth, polished UI |
 | **4 — auth** | Guest JWT; username/password register + login; Remember me (refresh token); Forgot password (dev: log the link); bcrypt; guest upgrade to a password account; then Google OAuth | Stats page, drag-drop |
 | **5 — stats / history + React drag-drop** | `user_stats` + history API, React + Vite in `rsp-client`, dnd-kit cards → drop slot → Ready | Production hosting |
-| **6 — deploy** | Dockerfile, Compose or a small VM, env-based config, README for a stranger to run it | Extra game modes |
+| **6 — deploy** | Dockerfiles, prod Compose example, `/health` + `/ready`, env-based config, README for a stranger to run it | Extra game modes |
 
 Each phase is one PR. Do not fold later phases into this one.
 
@@ -162,10 +162,10 @@ Each phase is one PR. Do not fold later phases into this one.
 
 - [x] `POST /rooms` with `winsToFinish` / `turnSeconds` mints a unique 6-digit passcode, persists `rooms` + host in `room_players`
 - [x] `POST /rooms/join` by passcode; `WRONG_PASSCODE` (404) and `ROOM_FULL` (409) match the React client in `rsp-client/`
-- [x] `POST /rooms/:id/leave` and `GET /rooms/:id`
-- [x] `GET /ws?room=&token=` — join/leave/presence, lobby ready, disconnect grace; types in `docs/ws-protocol.md`
+- [x] `POST /rooms/:id/leave`, `GET /rooms/:id`, and `GET /me/active-room` (live waiting/playing seat so a new tab can restore `/play`)
+- [x] `GET /ws?room=` — JWT via `Sec-WebSocket-Protocol: bearer.<jwt>` (or `?token=` / `Authorization`); join/leave/presence, lobby ready, disconnect grace; types in `docs/ws-protocol.md`
 - [x] In-memory hub (mutex per room + map mutex), empty rooms closed and dropped so passcodes reuse
-- [x] Temporary identity: `X-Player-ID` or `Authorization: Bearer` / `POST /dev/guest` (not phase 4 JWT)
+- [x] Dev identity: `X-Player-ID` or `POST /dev/guest` (JWT from phase 4 onward; those shortcuts stay `APP_ENV=dev` only)
 - [x] Phase 3 hooks only: `POST /rooms/:id/start` and WS `submit`/`ready` (while playing) return `NOT_IMPLEMENTED`
 - [x] Unit tests: passcode, join rules, hub; WS integration via `httptest`; `make test` (`make test-race` when cgo is available)
 
@@ -195,3 +195,14 @@ Each phase is one PR. Do not fold later phases into this one.
 - [x] Auth, Google button (behind `VITE_GOOGLE_CLIENT_ID`), lobby, create/join (WRONG_PASSCODE / ROOM_FULL), waiting room, board + Ready over WS, results, reconnect, stats, history
 - [x] Vite proxies `/api` and `/ws` to the Go server
 - [x] `make smoke` plays a first-to-1 match with two clients against the live server + Postgres
+
+## Phase 6 acceptance
+
+- [x] `rsp-server/Dockerfile` and `rsp-client/Dockerfile` (nginx SPA proxies `/api` and `/ws`)
+- [x] `docker-compose.prod.yml` — Postgres + migrate + API + web; secrets from env only
+- [x] `GET /health` (liveness) and `GET /ready` (Postgres ping)
+- [x] Production refuses missing/`dev` `JWT_SECRET`, `EMAIL_PROVIDER=log`, empty `CORS_ORIGINS`, empty `DATABASE_URL`; `/dev/guest` stays off
+- [x] Auth POST rate limit, CORS/WS origin allowlist, DB password from env, `sslmode` documented
+- [x] Google sign-in does not auto-link an existing password email
+- [x] README deploy section lists every environment variable; `.env.example` has no real secrets
+- [x] Hosted path: Render Docker web service (`render.yaml`) + Vercel SPA (`rsp-client/vercel.json`) + Supabase Postgres (`sslmode=require`; migrate uses the direct connection)

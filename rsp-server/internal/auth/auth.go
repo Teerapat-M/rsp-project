@@ -17,8 +17,11 @@ import (
 var usernameRE = regexp.MustCompile(`^[A-Za-z0-9_]{3,20}$`)
 
 const (
-	minPassword = 6
+	minPassword = 8
 	maxPassword = 72
+	// DevJWTSecret is the documented fallback when JWT_SECRET is unset in
+	// development. Production must set a real secret (see cmd/server).
+	DevJWTSecret = "dev-only-change-me-please-32b!!"
 )
 
 type Config struct {
@@ -76,7 +79,7 @@ func New(users Users, cfg Config) *Service {
 		cfg.Mail = LogSender{}
 	}
 	if len(cfg.Secret) == 0 {
-		cfg.Secret = []byte("dev-only-change-me-please-32b!!")
+		cfg.Secret = []byte(DevJWTSecret)
 	}
 	return &Service{
 		users:           users,
@@ -326,12 +329,9 @@ func (s *Service) Google(ctx context.Context, idToken string) (Session, error) {
 	if p, err := s.users.GetByProvider(ctx, "google", identities.Subject); err == nil {
 		return s.issue(ctx, p, false)
 	}
-	if identities.Email != "" {
-		if p, _, err := s.users.GetPlayerByEmail(ctx, identities.Email); err == nil {
-			_ = s.users.LinkProvider(ctx, p.ID, "google", identities.Subject)
-			return s.issue(ctx, p, false)
-		}
-	}
+	// Do not auto-link Google onto an existing password user just because
+	// the emails match — that is an account-takeover if the password
+	// address was never proven. Linking is an explicit later step.
 	p, err := s.users.CreateGoogleUser(ctx, identities.Email, identities.Name, identities.Subject, ident.DefaultAvatar, ident.DefaultColor)
 	if err != nil {
 		return Session{}, mapStore(err)

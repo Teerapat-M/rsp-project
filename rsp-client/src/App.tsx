@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { PageStatus } from './components/PageStatus'
+import { WakeBanner } from './components/WakeBanner'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { GameProvider } from './context/GameContext'
 import { SplashPage } from './pages/SplashPage'
@@ -19,7 +21,7 @@ import type { ReactNode } from 'react'
 
 function Gate({ children, registered }: { children: ReactNode; registered?: boolean }) {
   const { user, ready } = useAuth()
-  if (!ready) return null
+  if (!ready) return <PageStatus>Loading…</PageStatus>
   if (!user) return <Navigate to="/login" replace />
   if (registered && user.isGuest) return <Navigate to="/register" replace />
   return children
@@ -30,6 +32,7 @@ export default function App() {
     <AuthProvider>
       <GameProvider>
         <BrowserRouter>
+          <WakeBanner />
           <Routes>
             <Route path="/" element={<SplashPage />} />
             <Route path="/login" element={<LoginPage />} />

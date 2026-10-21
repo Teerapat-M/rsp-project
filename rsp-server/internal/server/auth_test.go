@@ -18,7 +18,7 @@ func TestAuthRegisterLoginRefreshLogout(t *testing.T) {
 	ts := newTestAPI(t)
 	defer ts.Close()
 
-	res, err := http.Post(ts.URL+"/auth/register", "application/json", bytes.NewBufferString(`{"username":"bell_ok","password":"secret1","email":"bell@example.com"}`))
+	res, err := http.Post(ts.URL+"/auth/register", "application/json", bytes.NewBufferString(`{"username":"bell_ok","password":"secret12","email":"bell@example.com"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestAuthRegisterLoginRefreshLogout(t *testing.T) {
 	}
 	decode(t, res, nil)
 
-	res, err = http.Post(ts.URL+"/auth/login", "application/json", bytes.NewBufferString(`{"username":"bell_ok","password":"secret1","rememberMe":true}`))
+	res, err = http.Post(ts.URL+"/auth/login", "application/json", bytes.NewBufferString(`{"username":"bell_ok","password":"secret12","rememberMe":true}`))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@ import { api } from '../api'
 import { formatPlayedAt } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
+import { PageStatus } from '../components/PageStatus'
 import type { MatchDetail, PlayableMove } from '../types'
 
 export function MatchDetailPage() {
@@ -16,12 +17,18 @@ export function MatchDetailPage() {
   const { createRoom } = useGame()
   const nav = useNavigate()
   const [m, setM] = useState<MatchDetail | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (id) api.getMatch(id).then(setM)
+    if (!id) return
+    api
+      .getMatch(id)
+      .then(setM)
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Match not found'))
   }, [id])
 
-  if (!m || !user) return <AppShell />
+  if (error) return <PageStatus>{error}</PageStatus>
+  if (!m || !user) return <PageStatus>Loading match…</PageStatus>
 
   return (
     <AppShell>
