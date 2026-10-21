@@ -12,11 +12,56 @@ import (
 // Memory is an in-process Store. Used by tests and as the uniqueness source
 // the hub already holds; production wraps Postgres.
 type Memory struct {
-	mu     sync.Mutex
-	users  map[string]ident.Player
-	rooms  map[string]*memRoom
-	byCode map[string]string // passcode → id, open rooms only
-	now    func() time.Time
+	mu        sync.Mutex
+	users     map[string]ident.Player
+	hashes    map[string]string // user id → bcrypt hash
+	providers map[string]string // provider+"\x00"+pid → user id
+	refresh   map[string]memRefresh
+	resets    map[string]memReset
+	rooms     map[string]*memRoom
+	byCode    map[string]string // passcode → id, open rooms only
+	matches   map[string]*MemMatch
+	stats     map[string]MemStats
+	now       func() time.Time
+}
+
+type memRefresh struct {
+	ID        string
+	UserID    string
+	Hash      string
+	ExpiresAt time.Time
+	CreatedAt time.Time
+	Revoked   bool
+}
+
+type memReset struct {
+	ID        string
+	UserID    string
+	Hash      string
+	ExpiresAt time.Time
+	Used      bool
+}
+
+// MemMatch is in-memory persistence for tests (and hub play without Postgres).
+type MemMatch struct {
+	ID       string
+	RoomID   string
+	WinnerID string
+	Ended    bool
+	EndedAt  time.Time
+	Rounds   []MemRound
+}
+
+type MemRound struct {
+	Number     int
+	WinnerID   string
+	Moves      map[string]string
+	AutoPicked map[string]bool
+}
+
+type MemStats struct {
+	Played, Wins, Losses  int
+	Rock, Paper, Scissors int
 }
 
 type memRoom struct {
@@ -26,10 +71,16 @@ type memRoom struct {
 
 func NewMemory() *Memory {
 	return &Memory{
-		users:  make(map[string]ident.Player),
-		rooms:  make(map[string]*memRoom),
-		byCode: make(map[string]string),
-		now:    time.Now,
+		users:     make(map[string]ident.Player),
+		hashes:    make(map[string]string),
+		providers: make(map[string]string),
+		refresh:   make(map[string]memRefresh),
+		resets:    make(map[string]memReset),
+		rooms:     make(map[string]*memRoom),
+		byCode:    make(map[string]string),
+		matches:   make(map[string]*MemMatch),
+		stats:     make(map[string]MemStats),
+		now:       time.Now,
 	}
 }
 
@@ -191,6 +242,83 @@ func (m *Memory) SetStatus(_ context.Context, id string, status Status) error {
 		delete(m.byCode, r.Passcode)
 	}
 	return nil
+}
+
+func (m *Memory) InsertMatch(_ context.Context, roomID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.rooms[roomID]; !ok {
+		return "", ErrNotFound
+	}
+	id := uuid.NewString()
+	m.matches[id] = &MemMatch{ID: id, RoomID: roomID}
+	return id, nil
+}
+
+func (m *Memory) FinishMatch(_ context.Context, matchID, winnerID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mm, ok := m.matches[matchID]
+	if !ok {
+		return ErrNotFound
+	}
+	mm.WinnerID = winnerID
+	mm.Ended = true
+	mm.EndedAt = m.now()
+	return nil
+}
+
+func (m *Memory) SaveRound(_ context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mm, ok := m.matches[matchID]
+	if !ok {
+		return ErrNotFound
+	}
+	copied := make(map[string]string, len(moves))
+	auto := make(map[string]bool, len(moves))
+	for k, v := range moves {
+		copied[k] = v.Move
+		auto[k] = v.AutoPicked
+	}
+	mm.Rounds = append(mm.Rounds, MemRound{Number: roundNo, WinnerID: winnerID, Moves: copied, AutoPicked: auto})
+	return nil
+}
+
+func (m *Memory) ApplyMatchStats(_ context.Context, userID string, won, lost bool, rock, paper, scissors int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	s := m.stats[userID]
+	s.Played++
+	if won {
+		s.Wins++
+	}
+	if lost {
+		s.Losses++
+	}
+	s.Rock += rock
+	s.Paper += paper
+	s.Scissors += scissors
+	m.stats[userID] = s
+	return nil
+}
+
+func (m *Memory) Match(id string) (MemMatch, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mm, ok := m.matches[id]
+	if !ok {
+		return MemMatch{}, false
+	}
+	out := *mm
+	out.Rounds = append([]MemRound(nil), mm.Rounds...)
+	return out, true
+}
+
+func (m *Memory) Stats(userID string) MemStats {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.stats[userID]
 }
 
 func (m *Memory) snapshotLocked(r *memRoom) Room {

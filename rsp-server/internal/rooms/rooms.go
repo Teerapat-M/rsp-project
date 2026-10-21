@@ -25,6 +25,9 @@ var (
 	ErrInvalidWins   = errors.New("wins_to_finish must be >= 1")
 	ErrInvalidTurn   = errors.New("turn_seconds must be >= 1")
 	ErrClosed        = errors.New("room is closed")
+	ErrUsernameTaken = errors.New("username is taken")
+	ErrEmailTaken    = errors.New("email is taken")
+	ErrNotGuest      = errors.New("account is not a guest")
 )
 
 type Status string
@@ -126,4 +129,16 @@ type Store interface {
 	CloseRoom(ctx context.Context, id string) error
 	SetHost(ctx context.Context, roomID, hostID string) error
 	SetStatus(ctx context.Context, id string, status Status) error
+
+	InsertMatch(ctx context.Context, roomID string) (matchID string, err error)
+	FinishMatch(ctx context.Context, matchID, winnerID string) error
+	SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error
+	ApplyMatchStats(ctx context.Context, userID string, won, lost bool, rock, paper, scissors int) error
+	HistoryStore
+}
+
+// RoundMove is one player's revealed throw for a persisted round.
+type RoundMove struct {
+	Move       string
+	AutoPicked bool
 }

@@ -2,36 +2,39 @@ package server
 
 import (
 	"net/http"
-	"strings"
 
+	"github.com/Teerapat-M/rsp-project/internal/auth"
 	"github.com/Teerapat-M/rsp-project/internal/hub"
 	"github.com/Teerapat-M/rsp-project/internal/ident"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type Server struct {
-	Hub *hub.Hub
+	Hub  *hub.Hub
+	Auth *auth.Service
 }
 
-func New(h *hub.Hub) *Server {
-	return &Server{Hub: h}
+func New(h *hub.Hub, a *auth.Service) *Server {
+	return &Server{Hub: h, Auth: a}
 }
 
 func (s *Server) Router() *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery(), gin.Logger(), cors())
 	r.GET("/health", s.health)
-	r.POST("/dev/guest", s.devGuest) // TEMPORARY — phase 4 replaces this with JWT.
+	s.registerAuth(r)
 
-	auth := r.Group("/")
-	auth.Use(s.requirePlayer())
-	auth.POST("/rooms", s.createRoom)
-	auth.POST("/rooms/join", s.joinRoom)
-	auth.GET("/rooms/:id", s.getRoom)
-	auth.POST("/rooms/:id/leave", s.leaveRoom)
-	auth.POST("/rooms/:id/start", s.startRoom) // phase 3 hook
+	authed := r.Group("/")
+	authed.Use(s.requirePlayer())
+	authed.POST("/rooms", s.createRoom)
+	authed.POST("/rooms/join", s.joinRoom)
+	authed.GET("/rooms/:id", s.getRoom)
+	authed.POST("/rooms/:id/leave", s.leaveRoom)
+	authed.POST("/rooms/:id/start", s.startRoom)
+	authed.GET("/stats", s.getStats)
+	authed.GET("/matches", s.listMatches)
+	authed.GET("/matches/:id", s.getMatch)
 
 	r.GET("/ws", s.ws)
 	return r
@@ -56,7 +59,7 @@ func cors() gin.HandlerFunc {
 }
 
 func (s *Server) health(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "phase": 2})
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "phase": 5})
 }
 
 type guestBody struct {
@@ -65,52 +68,12 @@ type guestBody struct {
 	Color       string `json:"color"`
 }
 
-func (s *Server) devGuest(c *gin.Context) {
-	var body guestBody
-	_ = c.ShouldBindJSON(&body)
-	name := strings.TrimSpace(body.DisplayName)
-	if name == "" {
-		name = ident.DefaultName
-	}
-	if len(name) > 32 {
-		writeAPIError(c, http.StatusBadRequest, "VALIDATION", "display name is too long", nil)
-		return
-	}
-	p := ident.Player{
-		ID:          uuid.NewString(),
-		DisplayName: name,
-		Avatar:      body.Avatar,
-		Color:       body.Color,
-		IsGuest:     true,
-	}
-	p, err := s.Hub.Store().EnsureGuest(c.Request.Context(), p)
-	if err != nil {
-		writeErr(c, err, "")
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"accessToken": p.ID, // TEMPORARY dev guest token = user UUID
-		"user": gin.H{
-			"id":          p.ID,
-			"displayName": p.DisplayName,
-			"isGuest":     true,
-			"avatar":      or(p.Avatar, ident.DefaultAvatar),
-			"color":       or(p.Color, ident.DefaultColor),
-		},
-	})
-}
-
 func (s *Server) requirePlayer() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		p, err := ident.FromRequest(c.Request)
+		p, err := s.playerFromRequest(c)
 		if err != nil {
 			writeAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED",
-				"temporary identity required: X-Player-ID or Authorization: Bearer <uuid>", nil)
-			return
-		}
-		p, err = s.Hub.Store().EnsureGuest(c.Request.Context(), p)
-		if err != nil {
-			writeErr(c, err, "")
+				"sign in required: Authorization: Bearer <jwt>", nil)
 			return
 		}
 		c.Set("player", p)
@@ -206,15 +169,10 @@ func (s *Server) startRoom(c *gin.Context) {
 }
 
 func (s *Server) ws(c *gin.Context) {
-	p, err := ident.FromRequest(c.Request)
+	p, err := s.playerFromRequest(c)
 	if err != nil {
 		writeAPIError(c, http.StatusUnauthorized, "UNAUTHORIZED",
-			"temporary identity required: token query or X-Player-ID", nil)
-		return
-	}
-	p, err = s.Hub.Store().EnsureGuest(c.Request.Context(), p)
-	if err != nil {
-		writeErr(c, err, "")
+			"sign in required: token query or Authorization: Bearer <jwt>", nil)
 		return
 	}
 	roomID := c.Query("room")
@@ -223,11 +181,4 @@ func (s *Server) ws(c *gin.Context) {
 		return
 	}
 	s.Hub.ServeWS(c.Writer, c.Request, roomID, p)
-}
-
-func or(v, fallback string) string {
-	if v == "" {
-		return fallback
-	}
-	return v
 }

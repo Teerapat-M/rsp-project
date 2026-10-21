@@ -20,8 +20,8 @@ const (
 	maxMsg     = 4096
 )
 
-// ErrPhase3 is returned by StartMatch and WS play messages until phase 3 wires the clock.
-var ErrPhase3 = errors.New("countdown, moves, and round resolution are phase 3")
+// ErrPhase3 is returned when play/start handlers are unset.
+var ErrPhase3 = errors.New("not implemented")
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -29,12 +29,10 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(*http.Request) bool { return true },
 }
 
-// ClientMessage is the JSON body the browser sends. Phase 2 handles lobby.ready,
-// ready (while waiting), and leave. Everything else is a documented hook.
+// ClientMessage is the JSON body the browser sends.
 type ClientMessage struct {
 	Type string `json:"type"`
 	Move string `json:"move,omitempty"`
-	Kind string `json:"kind,omitempty"`
 }
 
 type client struct {
@@ -157,7 +155,7 @@ func (h *Hub) handleClient(c *client, data []byte) {
 		h.playOrReject(c, msg)
 	case "lobby.unready":
 		_, _ = h.SetLobbyReady(c.sess.id, c.player.ID, false)
-	case "submit", "claim_win", "play_again", "simulate":
+	case "submit", "claim_win", "play_again":
 		h.playOrReject(c, msg)
 	default:
 		c.sendErr("VALIDATION", "unknown message type")

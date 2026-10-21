@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Button } from '../components/Button'
-import { Hand, moveLabel } from '../components/Hand'
+import { Hand, moveLabel, RandomBadge } from '../components/Hand'
 import { IconArrowLeft } from '../components/Icons'
 import { api } from '../api'
+import { formatPlayedAt } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import type { MatchDetail, PlayableMove } from '../types'
@@ -32,7 +33,7 @@ export function MatchDetailPage() {
           {user.displayName} vs {m.opponentName}
         </h1>
         <div className="pill" style={{ borderColor: '#16a34a', color: '#16a34a', background: '#e3f5e9' }}>
-          {m.won ? 'Win' : 'Loss'} • {m.youScore} – {m.opponentScore} • First to {m.winsToFinish} • {m.turnSeconds}s/round • {m.playedAt}
+          {m.won ? 'Win' : 'Loss'} • {m.youScore} – {m.opponentScore} • First to {m.winsToFinish} • {m.turnSeconds}s/round • {formatPlayedAt(m.playedAt)}
         </div>
         <div className="panel table">
           <div className="tableHead">
@@ -48,10 +49,12 @@ export function MatchDetailPage() {
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {r.you !== 'timeout' ? <Hand move={r.you as PlayableMove} size={20} /> : null}
                 {moveLabel(r.you)}
+                <RandomBadge show={r.youAutoPicked} />
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {r.opponent !== 'timeout' ? <Hand move={r.opponent as PlayableMove} size={20} /> : null}
                 {moveLabel(r.opponent)}
+                <RandomBadge show={r.opponentAutoPicked} />
               </span>
               <span className={`badge ${r.result === 'won' ? 'badgeOk' : ''}`} style={r.result === 'lost' ? { background: '#fde8e8', color: '#dc2626' } : undefined}>
                 {r.result === 'won' ? 'Won' : r.result === 'lost' ? 'Lost' : 'Draw'}

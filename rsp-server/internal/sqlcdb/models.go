@@ -156,9 +156,10 @@ type Round struct {
 }
 
 type RoundMove struct {
-	RoundID uuid.UUID `json:"round_id"`
-	UserID  uuid.UUID `json:"user_id"`
-	Move    MoveKind  `json:"move"`
+	RoundID    uuid.UUID `json:"round_id"`
+	UserID     uuid.UUID `json:"user_id"`
+	Move       MoveKind  `json:"move"`
+	AutoPicked bool      `json:"auto_picked"`
 }
 
 type User struct {
@@ -169,6 +170,8 @@ type User struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	Username     *string            `json:"username"`
 	PasswordHash *string            `json:"password_hash"`
+	Avatar       string             `json:"avatar"`
+	Color        string             `json:"color"`
 }
 
 type UserStat struct {

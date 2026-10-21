@@ -2,7 +2,7 @@
 
 Online Rock-Paper-Scissors. Backend is Go in [`rsp-server/`](rsp-server/); the React client lives in [`rsp-client/`](rsp-client/).
 
-**You are here: phase 2** — create/join rooms by 6-digit passcode, an in-memory WebSocket hub, and a temporary player identity. Gameplay countdown and real auth are later. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
+**You are here: phase 5** — stats/history plus the React client talking to the real Go API. Product spec: [SPEC.md](SPEC.md). WS messages: [docs/ws-protocol.md](docs/ws-protocol.md).
 
 ## Prerequisites
 
@@ -41,16 +41,16 @@ make run
 # GET http://localhost:8080/health
 ```
 
-Identity is **temporary** until phase 4. Send `X-Player-ID: alice` (any string; UUIDs are kept, other values hash to a stable UUID) or mint a guest:
+Auth is JWT. Register / login / guest / Google mint `{ accessToken, refreshToken, user }`. Send `Authorization: Bearer <access>` on REST and `?token=<access>` on the WebSocket.
 
 ```bash
-curl -s http://localhost:8080/dev/guest \
+curl -s http://localhost:8080/auth/guest \
   -H 'Content-Type: application/json' \
-  -d '{"displayName":"Alice"}'
-# { "accessToken": "<uuid>", "user": { ... } }
+  -d '{"displayName":"Alice","avatar":"rock","color":"#9DB89A"}'
+# { "accessToken": "<jwt>", "refreshToken": "<opaque>", "user": { ... } }
 ```
 
-Use that UUID as `Authorization: Bearer` or as `?token=` on the WebSocket.
+In **dev** (`APP_ENV=dev`, the default), `POST /dev/guest` is an alias and `X-Player-ID: alice` still works for curl. Production requires `JWT_SECRET` and ignores those shortcuts.
 
 ### Try two players
 
@@ -84,9 +84,24 @@ ws://localhost:8080/ws?room=<id>&token=alice
 
 Send `{"type":"lobby.ready"}` or `{"type":"leave"}`. Presence and `room.updated` are pushed to everyone in the room. Disconnect grace is 20s (`DISCONNECT_GRACE`).
 
-`POST /rooms/:id/start` and move/ready-during-play are **phase 3** (`501 NOT_IMPLEMENTED`).
+### Play a match (phase 3)
 
-The React app in `rsp-client/` already speaks this REST shape (`/rooms`, `/rooms/join`, error codes `WRONG_PASSCODE` / `ROOM_FULL`). It still defaults to its mock (`VITE_USE_MOCK` not `false`). To point it at Go: mint a guest via `/dev/guest`, store `accessToken` / `user` the way the mock login does, set `VITE_USE_MOCK=false`, and run the Vite proxy (it strips `/api` and forwards to `:8080`).
+After two players have joined and opened `/ws`:
+
+```bash
+# host starts (only the host, and only with 2 players)
+curl -s -X POST http://localhost:8080/rooms/<id>/start -H 'X-Player-ID: alice'
+
+# on each WebSocket:
+# {"type":"submit","move":"rock"}
+# {"type":"ready"}
+```
+
+The server hides each move until both are Ready or `turnSeconds` elapses. Anyone without a card when the timer fires gets a random rock/paper/scissors (`auto_picked`). First to `winsToFinish` ends the match. Rounds and the match are written to Postgres; `user_stats` updates at match end.
+
+Disconnect mid-match pauses the clock (grace, default 20s). Come back in time and play continues; otherwise it is a forfeit. After `match.finished`, send `{"type":"play_again"}` (both players) for a rematch, or `leave` to return to the lobby.
+
+The React app in `rsp-client/` speaks this REST + WS shape. Vite proxies `/api` and `/ws` to `:8080` (it strips the `/api` prefix).
 
 ## Tests
 
@@ -113,13 +128,22 @@ Run these from `rsp-server/`.
 
 ## Frontend (React)
 
-The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). Mock mode is still the default so every screen is clickable without auth.
+The UI is a separate app in `rsp-client/` (Vite + TypeScript + dnd-kit). It always talks to the Go server:
 
 ```bash
 cd rsp-client
+cp .env.example .env
+# VITE_GOOGLE_CLIENT_ID=   # optional; hides Gmail unless set
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5173 — Vite proxies /api and /ws to :8080
 npm run build
+```
+
+Two-player smoke against live Postgres (server already up):
+
+```bash
+cd rsp-server
+make smoke
 ```
 
 Details: [rsp-client/README.md](rsp-client/README.md).
@@ -129,7 +153,9 @@ Details: [rsp-client/README.md](rsp-client/README.md).
 ```
 rsp-server/cmd/server     main()
 rsp-server/internal/game  rules engine
-rsp-server/internal/ident temporary player identity
+rsp-server/internal/auth  JWT, refresh, Google, mail
+rsp-server/internal/ident player identity
+rsp-server/cmd/smoke      two-player e2e against live HTTP+WS
 rsp-server/internal/passcode  6-digit codes
 rsp-server/internal/rooms persistence + join rules
 rsp-server/internal/hub   live rooms + WS

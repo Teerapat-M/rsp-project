@@ -70,5 +70,14 @@ export function moveLabel(move: Move | '' | 'hidden'): string {
   return ''
 }
 
+export function RandomBadge({ show }: { show?: boolean }) {
+  if (!show) return null
+  return (
+    <span className="badge" title="Picked at random when the timer ran out">
+      Random
+    </span>
+  )
+}
+
 export const HAND_ORDER: PlayableMove[] = ['rock', 'scissors', 'paper']
 export const HAND_FILL = FILL

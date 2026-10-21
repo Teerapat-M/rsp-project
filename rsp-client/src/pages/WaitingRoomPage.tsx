@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
@@ -7,22 +7,22 @@ import { IconCheck, IconClock, IconCopy, IconLogout, IconUsers } from '../compon
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import { formatPasscode } from '../lib/format'
-import { api } from '../api'
 
 export function WaitingRoomPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { room, attach, startGame, leaveRoom, view } = useGame()
+  const { room, loadRoom, startGame, leaveRoom, view } = useGame()
   const nav = useNavigate()
   const [copied, setCopied] = useState(false)
+  const loadRoomRef = useRef(loadRoom)
+  useEffect(() => {
+    loadRoomRef.current = loadRoom
+  })
 
   useEffect(() => {
     if (!id) return
-    if (!room || room.id !== id) {
-      attach(id)
-      api.getRoom(id).then(() => attach(id)).catch(() => nav('/lobby'))
-    }
-  }, [id, room, attach, nav])
+    loadRoomRef.current(id).catch(() => nav('/lobby'))
+  }, [id, nav])
 
   useEffect(() => {
     if (view && !view.finished) nav('/play')

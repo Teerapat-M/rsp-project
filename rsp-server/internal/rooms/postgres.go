@@ -31,20 +31,24 @@ func (p *Postgres) EnsureGuest(ctx context.Context, pl ident.Player) (ident.Play
 	if name == "" {
 		name = ident.DefaultName
 	}
-	row, err := p.q.InsertGuest(ctx, sqlcdb.InsertGuestParams{ID: id, DisplayName: name})
+	avatar := pl.Avatar
+	if avatar == "" {
+		avatar = ident.DefaultAvatar
+	}
+	color := pl.Color
+	if color == "" {
+		color = ident.DefaultColor
+	}
+	row, err := p.q.InsertGuest(ctx, sqlcdb.InsertGuestParams{
+		ID:          id,
+		DisplayName: name,
+		Avatar:      avatar,
+		Color:       color,
+	})
 	if err != nil {
 		return ident.Player{}, err
 	}
-	pl.ID = row.ID.String()
-	pl.DisplayName = row.DisplayName
-	pl.IsGuest = row.IsGuest
-	if pl.Avatar == "" {
-		pl.Avatar = ident.DefaultAvatar
-	}
-	if pl.Color == "" {
-		pl.Color = ident.DefaultColor
-	}
-	return pl, nil
+	return PlayerFromUser(row), nil
 }
 
 func (p *Postgres) InsertRoom(ctx context.Context, hostID, passcode string, wins, seconds int) (Room, error) {
@@ -132,8 +136,8 @@ func (p *Postgres) ListPlayers(ctx context.Context, roomID string) ([]Player, er
 		out = append(out, Player{
 			ID:          r.ID.String(),
 			DisplayName: r.DisplayName,
-			Avatar:      ident.DefaultAvatar,
-			Color:       ident.DefaultColor,
+			Avatar:      orDefault(r.Avatar, ident.DefaultAvatar),
+			Color:       orDefault(r.Color, ident.DefaultColor),
 			IsHost:      r.ID == room.HostID,
 			Joined:      true,
 		})
@@ -172,6 +176,94 @@ func (p *Postgres) SetStatus(ctx context.Context, id string, status Status) erro
 	})
 }
 
+func (p *Postgres) InsertMatch(ctx context.Context, roomID string) (string, error) {
+	rid, err := uuid.Parse(roomID)
+	if err != nil {
+		return "", ErrNotFound
+	}
+	row, err := p.q.InsertMatch(ctx, rid)
+	if err != nil {
+		return "", err
+	}
+	return row.ID.String(), nil
+}
+
+func (p *Postgres) FinishMatch(ctx context.Context, matchID, winnerID string) error {
+	mid, err := uuid.Parse(matchID)
+	if err != nil {
+		return ErrNotFound
+	}
+	var winner *uuid.UUID
+	if winnerID != "" {
+		w, err := uuid.Parse(winnerID)
+		if err != nil {
+			return err
+		}
+		winner = &w
+	}
+	return p.q.FinishMatch(ctx, sqlcdb.FinishMatchParams{ID: mid, WinnerID: winner})
+}
+
+func (p *Postgres) SaveRound(ctx context.Context, matchID string, roundNo int, winnerID string, moves map[string]RoundMove) error {
+	mid, err := uuid.Parse(matchID)
+	if err != nil {
+		return ErrNotFound
+	}
+	var winner *uuid.UUID
+	if winnerID != "" {
+		w, err := uuid.Parse(winnerID)
+		if err != nil {
+			return err
+		}
+		winner = &w
+	}
+	round, err := p.q.InsertRound(ctx, sqlcdb.InsertRoundParams{
+		MatchID:  mid,
+		RoundNo:  int32(roundNo),
+		WinnerID: winner,
+	})
+	if err != nil {
+		return err
+	}
+	for uid, mv := range moves {
+		userID, err := uuid.Parse(uid)
+		if err != nil {
+			return err
+		}
+		if err := p.q.InsertRoundMove(ctx, sqlcdb.InsertRoundMoveParams{
+			RoundID:    round.ID,
+			UserID:     userID,
+			Move:       sqlcdb.MoveKind(mv.Move),
+			AutoPicked: mv.AutoPicked,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Postgres) ApplyMatchStats(ctx context.Context, userID string, won, lost bool, rock, paper, scissors int) error {
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return err
+	}
+	var wins, losses int32
+	if won {
+		wins = 1
+	}
+	if lost {
+		losses = 1
+	}
+	return p.q.ApplyMatchStats(ctx, sqlcdb.ApplyMatchStatsParams{
+		UserID:        uid,
+		Wins:          wins,
+		Losses:        losses,
+		RockCount:     int32(rock),
+		PaperCount:    int32(paper),
+		ScissorsCount: int32(scissors),
+	})
+}
+
 func roomFromRow(row sqlcdb.Room) Room {
 	return Room{
 		ID:           row.ID.String(),
@@ -193,4 +285,11 @@ func mapNotFound(err error) error {
 func isUnique(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+func orDefault(v, fallback string) string {
+	if v == "" {
+		return fallback
+	}
+	return v
 }

@@ -44,6 +44,7 @@ export type MatchStatus = 'playing' | 'finished'
 export type ResolvedRound = {
   number: number
   moves: Record<string, Move>
+  autoPicked?: Record<string, boolean>
   winnerId: string | null
   draw: boolean
   pickTimeYouSec?: number
@@ -78,6 +79,8 @@ export type RoundResultView = {
   winsNeeded: number
   yourMove: Move
   opponentMove: Move
+  yourAutoPicked?: boolean
+  opponentAutoPicked?: boolean
   youWon: boolean
   draw: boolean
   scores: Record<string, number>
@@ -89,6 +92,7 @@ export type UserStats = {
   matchesPlayed: number
   wins: number
   losses: number
+  draws?: number
   winRate: number
   bestStreak: number
   picks: Record<PlayableMove, number>
@@ -121,6 +125,8 @@ export type MatchDetail = HistoryItem & {
     opponent: Move
     result: 'won' | 'lost' | 'draw'
     pickTimeSec: number
+    youAutoPicked?: boolean
+    opponentAutoPicked?: boolean
   }>
 }
 
@@ -157,7 +163,6 @@ export type WsClientEvent =
   | { type: 'claim_win' }
   | { type: 'play_again' }
   | { type: 'leave' }
-  | { type: 'simulate'; kind: 'opponent_dc' | 'connection_lost' | 'connection_restore' }
 
 export type WsConnection = {
   send: (event: WsClientEvent) => void

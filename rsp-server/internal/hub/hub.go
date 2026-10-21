@@ -12,13 +12,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Teerapat-M/rsp-project/internal/game"
 	"github.com/Teerapat-M/rsp-project/internal/ident"
 	"github.com/Teerapat-M/rsp-project/internal/passcode"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/gorilla/websocket"
 )
 
-const defaultGrace = 20 * time.Second
+const (
+	defaultGrace       = 20 * time.Second
+	defaultResultPause = 3 * time.Second
+)
 
 // PlayHandler is the phase 3 hook for submit / round-ready / claim_win / play_again.
 // Phase 2 leaves this nil: those client messages get a typed error, not a crash.
@@ -30,17 +34,25 @@ type StartHandler func(roomID, playerID string) error
 type Config struct {
 	Grace time.Duration
 	// After schedules f after d and returns a stop func (time.AfterFunc in prod).
-	After   func(d time.Duration, f func()) (stop func() bool)
-	OnPlay  PlayHandler
-	OnStart StartHandler
+	After func(d time.Duration, f func()) (stop func() bool)
+	// ResultPause is the delay after round.resolved before the next clock
+	// (or match.finished). Zero means 3s. Tests can set a tiny duration.
+	ResultPause time.Duration
+	OnPlay      PlayHandler
+	OnStart     StartHandler
+	// Pick replaces crypto/rand when a turn times out with no card. Tests
+	// inject a stub so auto-picks are deterministic.
+	Pick game.Pick
 }
 
 type Hub struct {
-	store   rooms.Store
-	grace   time.Duration
-	after   func(d time.Duration, f func()) (stop func() bool)
-	onPlay  PlayHandler
-	onStart StartHandler
+	store       rooms.Store
+	grace       time.Duration
+	after       func(d time.Duration, f func()) (stop func() bool)
+	resultPause time.Duration
+	onPlay      PlayHandler
+	onStart     StartHandler
+	pick        game.Pick
 
 	mu     sync.Mutex
 	rooms  map[string]*session
@@ -59,15 +71,30 @@ func New(store rooms.Store, cfg Config) *Hub {
 			return t.Stop
 		}
 	}
-	return &Hub{
-		store:   store,
-		grace:   grace,
-		after:   after,
-		onPlay:  cfg.OnPlay,
-		onStart: cfg.OnStart,
-		rooms:   make(map[string]*session),
-		byCode:  make(map[string]*session),
+	pause := cfg.ResultPause
+	if pause == 0 {
+		pause = defaultResultPause
 	}
+	h := &Hub{
+		store:       store,
+		grace:       grace,
+		after:       after,
+		resultPause: pause,
+		onPlay:      cfg.OnPlay,
+		onStart:     cfg.OnStart,
+		pick:        cfg.Pick,
+		rooms:       make(map[string]*session),
+		byCode:      make(map[string]*session),
+	}
+	if h.onPlay == nil {
+		h.onPlay = h.handlePlay
+	}
+	if h.onStart == nil {
+		h.onStart = func(roomID, playerID string) error {
+			return h.beginMatch(roomID, playerID, false)
+		}
+	}
+	return h
 }
 
 func (h *Hub) Store() rooms.Store   { return h.store }
@@ -96,7 +123,16 @@ type session struct {
 	seconds  int
 	status   rooms.Status
 	members  []*member // join order
-	// phase 3: match engine hangs off the session; unused here.
+
+	match       *game.Match
+	matchID     string
+	remaining   int
+	paused      bool
+	timeoutStop func() bool
+	tickStop    func() bool
+	resultStop  func() bool
+	playAgain   map[string]bool
+	clockRound  int
 }
 
 func (h *Hub) Create(ctx context.Context, host ident.Player, wins, seconds int) (rooms.Room, error) {
@@ -198,6 +234,9 @@ func (h *Hub) Leave(ctx context.Context, roomID, playerID string) (rooms.Room, e
 		snap := s.snapshotLocked()
 		s.mu.Unlock()
 		return snap, nil
+	}
+	if s.match != nil && s.match.Status() == game.StatusPlaying {
+		h.forfeitLocked(s, playerID)
 	}
 	s.removeLocked(playerID)
 	if err := h.store.RemovePlayer(ctx, s.id, playerID); err != nil {
@@ -426,6 +465,24 @@ func (s *session) snapshot() rooms.Room {
 	return s.snapshotLocked()
 }
 
+func (s *session) sendToLocked(playerID string, msg event) {
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+	m, ok := s.findLocked(playerID)
+	if !ok {
+		return
+	}
+	for c := range m.conns {
+		select {
+		case c.send <- payload:
+		default:
+			c.close()
+		}
+	}
+}
+
 func (s *session) snapshotLocked() rooms.Room {
 	ps := make([]rooms.Player, 0, len(s.members))
 	for _, m := range s.members {
@@ -506,8 +563,27 @@ func (h *Hub) attach(s *session, player ident.Player, conn *websocket.Conn) *cli
 	})
 	if reconnected {
 		s.broadcastLocked(event{"type": "player.reconnected", "playerId": player.ID})
+		if s.match != nil && s.match.Status() == game.StatusPlaying {
+			h.sendOpponentEventLocked(s, player.ID, "opponent.reconnected")
+		}
 	}
 	s.broadcastLocked(event{"type": "room.updated", "room": snap})
+	if s.match != nil {
+		// Late and reconnecting sockets were not in the room at POST /start,
+		// so they never saw match.started. Send the same snapshot now.
+		typ := "view"
+		switch s.match.Status() {
+		case game.StatusPlaying:
+			typ = "match.started"
+		case game.StatusFinished:
+			typ = "match.finished"
+		}
+		s.sendToLocked(player.ID, event{"type": typ, "view": h.playerViewLocked(s, player)})
+		if reconnected && s.match.Status() == game.StatusPlaying && s.allConnectedLocked() {
+			s.paused = false
+			h.startClockLocked(s)
+		}
+	}
 	s.mu.Unlock()
 	return c
 }
@@ -537,10 +613,20 @@ func (h *Hub) detach(c *client) {
 	})
 	s.broadcastLocked(event{"type": "player.disconnected", "playerId": playerID, "reconnectSeconds": int(grace / time.Second)})
 	s.broadcastLocked(event{"type": "room.updated", "room": s.snapshotLocked()})
+	playing := s.match != nil && s.match.Status() == game.StatusPlaying
+	if playing {
+		s.paused = true
+		s.stopClockLocked()
+		h.sendOpponentEventLocked(s, playerID, "opponent.disconnected")
+	}
 	if m.graceStop != nil {
 		m.graceStop()
 	}
 	m.graceStop = h.after(grace, func() {
+		if playing {
+			h.forfeit(roomID, playerID)
+			return
+		}
 		if _, err := h.Leave(context.Background(), roomID, playerID); err != nil {
 			log.Printf("hub: grace leave: %v", err)
 		}

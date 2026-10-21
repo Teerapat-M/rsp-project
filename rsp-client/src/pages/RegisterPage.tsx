@@ -8,7 +8,7 @@ import { IconLock, IconMail, IconUser } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 
 export function RegisterPage() {
-  const { register } = useAuth()
+  const { register, user } = useAuth()
   const nav = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -34,7 +34,9 @@ export function RegisterPage() {
           <Logo size="sm" />
         </div>
         <h1 className="heroTitle">Create account</h1>
-        <p className="heroSub">Username, password, optional email</p>
+        <p className="heroSub">
+          {user?.isGuest ? 'Keep this guest id and add a password' : 'Username, password, optional email'}
+        </p>
         <form className="authForm" onSubmit={onSubmit}>
           <Input icon={<IconUser />} placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
           <Input icon={<IconLock />} placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />

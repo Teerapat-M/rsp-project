@@ -50,4 +50,10 @@ func TestFromRequestHeaderAndBearer(t *testing.T) {
 	if _, err := FromRequest(req3); err != ErrNoPlayer {
 		t.Fatalf("want ErrNoPlayer, got %v", err)
 	}
+
+	req4, _ := http.NewRequest(http.MethodGet, "http://x/rooms", nil)
+	req4.Header.Set("Authorization", "Bearer header.payload.sig")
+	if _, err := FromRequest(req4); err != ErrNoPlayer {
+		t.Fatalf("JWT bearer must not become a hashed guest, got %v", err)
+	}
 }

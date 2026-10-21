@@ -30,7 +30,7 @@ DELETE FROM room_players
 WHERE room_id = $1 AND user_id = $2;
 
 -- name: ListRoomPlayers :many
-SELECT u.id, u.display_name, u.is_guest, rp.joined_at
+SELECT u.id, u.display_name, u.is_guest, u.avatar, u.color, rp.joined_at
 FROM room_players rp
 INNER JOIN users u ON u.id = rp.user_id
 WHERE rp.room_id = $1
