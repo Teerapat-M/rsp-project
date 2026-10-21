@@ -17,10 +17,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Teerapat-M/rsp-project/internal/redact"
 	"github.com/gorilla/websocket"
 )
 
 func main() {
+	log.SetOutput(redact.Writer(os.Stderr))
 	base := getenv("SMOKE_BASE", "http://localhost:8080")
 	if !strings.HasPrefix(base, "http") {
 		base = "http://localhost" + base
@@ -29,7 +31,7 @@ func main() {
 
 	health, err := http.Get(base + "/health")
 	if err != nil {
-		log.Fatalf("health: %v (is the server up? make run)", err)
+		log.Fatalf("health: %s (is the server up? make run)", redact.Error(err))
 	}
 	body, _ := io.ReadAll(health.Body)
 	_ = health.Body.Close()
@@ -261,7 +263,7 @@ func upgrade(base string, s session, tag string) session {
 func dialWS(url string) *websocket.Conn {
 	c, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
-		log.Fatalf("ws %s: %v", url, err)
+		log.Fatalf("ws %s: %s", url, redact.Error(err))
 	}
 	return c
 }
@@ -272,7 +274,7 @@ func waitStarted(c *websocket.Conn) map[string]any {
 	for {
 		var msg map[string]any
 		if err := c.ReadJSON(&msg); err != nil {
-			log.Fatalf("wait match.started: %v", err)
+			log.Fatalf("wait match.started: %s", redact.Error(err))
 		}
 		typ := str(msg["type"])
 		if typ == "match.started" {
@@ -297,7 +299,7 @@ func waitType(c *websocket.Conn, want string) map[string]any {
 	for {
 		var msg map[string]any
 		if err := c.ReadJSON(&msg); err != nil {
-			log.Fatalf("wait %s: %v", want, err)
+			log.Fatalf("wait %s: %s", want, redact.Error(err))
 		}
 		if str(msg["type"]) == want {
 			return msg
@@ -322,7 +324,7 @@ func postJSON(url, token string, body any) map[string]any {
 	}
 	var out map[string]any
 	if err := json.Unmarshal(raw, &out); err != nil {
-		log.Fatalf("decode %s: %v (%s)", url, err, raw)
+		log.Fatalf("decode %s: %s (%s)", url, redact.Error(err), raw)
 	}
 	return out
 }
@@ -335,7 +337,7 @@ func postRaw(url, token string, body any) *http.Response {
 	}
 	req, err := http.NewRequest(http.MethodPost, url, r)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(redact.Error(err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
@@ -343,7 +345,7 @@ func postRaw(url, token string, body any) *http.Response {
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(redact.Error(err))
 	}
 	return res
 }
@@ -353,7 +355,7 @@ func getJSON(url, token string) map[string]any {
 	req.Header.Set("Authorization", "Bearer "+token)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(redact.Error(err))
 	}
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(res.Body)
@@ -362,7 +364,7 @@ func getJSON(url, token string) map[string]any {
 	}
 	var out map[string]any
 	if err := json.Unmarshal(raw, &out); err != nil {
-		log.Fatalf("decode %s: %v (%s)", url, err, raw)
+		log.Fatalf("decode %s: %s (%s)", url, redact.Error(err), raw)
 	}
 	return out
 }
@@ -382,7 +384,7 @@ func str(v any) string {
 
 func must(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(redact.Error(err))
 	}
 }
 

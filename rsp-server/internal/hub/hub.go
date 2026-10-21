@@ -16,6 +16,7 @@ import (
 	"github.com/Teerapat-M/rsp-project/internal/game"
 	"github.com/Teerapat-M/rsp-project/internal/ident"
 	"github.com/Teerapat-M/rsp-project/internal/passcode"
+	"github.com/Teerapat-M/rsp-project/internal/redact"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 	"github.com/gorilla/websocket"
 )
@@ -252,19 +253,19 @@ func (h *Hub) Leave(ctx context.Context, roomID, playerID string) (rooms.Room, e
 	}
 	s.removeLocked(playerID)
 	if err := h.store.RemovePlayer(ctx, s.id, playerID); err != nil {
-		log.Printf("hub: remove player: %v", err)
+		log.Printf("hub: remove player: %s", redact.Error(err))
 	}
 	empty := len(s.members) == 0
 	if !empty && s.hostID == playerID {
 		s.hostID = s.members[0].player.ID
 		if err := h.store.SetHost(ctx, s.id, s.hostID); err != nil {
-			log.Printf("hub: set host: %v", err)
+			log.Printf("hub: set host: %s", redact.Error(err))
 		}
 	}
 	if empty {
 		s.status = rooms.StatusClosed
 		if err := h.store.CloseRoom(ctx, s.id); err != nil {
-			log.Printf("hub: close room: %v", err)
+			log.Printf("hub: close room: %s", redact.Error(err))
 		}
 	}
 	snap := s.publishLocked()
@@ -701,7 +702,7 @@ func (h *Hub) detach(c *client) {
 			return
 		}
 		if _, err := h.Leave(context.Background(), roomID, playerID); err != nil {
-			log.Printf("hub: grace leave: %v", err)
+			log.Printf("hub: grace leave: %s", redact.Error(err))
 		}
 	})
 	s.mu.Unlock()

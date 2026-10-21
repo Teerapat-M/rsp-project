@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Teerapat-M/rsp-project/internal/game"
+	"github.com/Teerapat-M/rsp-project/internal/redact"
 	"github.com/Teerapat-M/rsp-project/internal/rooms"
 )
 
@@ -49,7 +50,7 @@ func (h *Hub) beginMatchLocked(s *session, playerID string, rematch bool) error 
 		return err
 	}
 	if err := h.store.SetStatus(context.Background(), s.id, rooms.StatusPlaying); err != nil {
-		log.Printf("hub: set playing: %v", err)
+		log.Printf("hub: set playing: %s", redact.Error(err))
 	}
 
 	s.stopClockLocked()
@@ -360,7 +361,7 @@ func (h *Hub) persistRoundLocked(s *session, rr *game.ResolvedRound) {
 		}
 	}
 	if err := h.store.SaveRound(context.Background(), s.matchID, rr.Number, string(rr.Winner), moves); err != nil {
-		log.Printf("hub: save round: %v", err)
+		log.Printf("hub: save round: %s", redact.Error(err))
 	}
 }
 
@@ -369,7 +370,7 @@ func (h *Hub) persistFinishLocked(s *session, winnerID string) {
 		return
 	}
 	if err := h.store.FinishMatch(context.Background(), s.matchID, winnerID); err != nil {
-		log.Printf("hub: finish match: %v", err)
+		log.Printf("hub: finish match: %s", redact.Error(err))
 	}
 	if s.match == nil {
 		return
@@ -380,7 +381,7 @@ func (h *Hub) persistFinishLocked(s *session, winnerID string) {
 		lost := winnerID != "" && uid != winnerID
 		rock, paper, scissors := pickCounts(s.match, id)
 		if err := h.store.ApplyMatchStats(context.Background(), uid, won, lost, rock, paper, scissors); err != nil {
-			log.Printf("hub: stats %s: %v", uid, err)
+			log.Printf("hub: stats %s: %s", uid, redact.Error(err))
 		}
 	}
 }

@@ -1,7 +1,8 @@
 .PHONY: test test-race run up down migrate-up migrate-down tidy vet sqlc smoke check-migrations
 
 # Host-side migrate CLI, if installed: https://github.com/golang-migrate/migrate
-# Compose already runs the same files via the migrate service (db:5432).
+# Talks to the published Postgres port (localhost:5433). Production Compose
+# does not run a separate migrate container; the API entrypoint does.
 #
 # Recipes are one command each (no POSIX shell, no pipelines). GNU make on
 # Windows (ezwinports) runs them in cmd.exe; `go`/`docker`/`migrate` accept

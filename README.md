@@ -18,14 +18,14 @@ cp .env.example .env   # optional; Compose uses the same defaults
 docker compose up -d
 ```
 
-That starts PostgreSQL and a one-shot `migrate` container (`golang-migrate`) that applies `db/migrations`. Check:
+That starts PostgreSQL and a one-shot `migrate` container that applies `db/migrations` (no restart loop). Prefer **`make migrate-up`** from the host if you do not want the official migrate image logging a DSN on failure. Check:
 
 ```bash
 docker compose ps
-docker compose logs migrate
+make migrate-up
 ```
 
-Postgres from the host: `localhost:5433` (Compose maps `5433:5432` so a native Postgres on 5432 can stay). User/password/db come from `POSTGRES_*` in `.env` (local default `rsp` — see `.env.example`). Inside the Compose network, migrate talks to `db:5432`. The DSN uses `sslmode=disable` for this private Compose network; use `sslmode=require` (or `verify-full`) if the database is reached over the internet.
+Postgres from the host: `localhost:5433` (Compose maps `5433:5432` so a native Postgres on 5432 can stay). User/password/db come from `POSTGRES_*` in `.env` (local default `rsp` — see `.env.example`). Inside the Compose network, migrate talks to `db:5432`. Host `make migrate-up` uses `localhost:5433`. The DSN uses `sslmode=disable` for this private Compose network; use `sslmode=require` (or `verify-full`) if the database is reached over the internet.
 
 Stop and wipe the volume:
 
@@ -167,7 +167,7 @@ Hosted target: **Go API on Render** (Docker web service, WebSockets), **React on
    - Render injects `PORT`; the process listens on `:$PORT` when `HTTP_ADDR` is empty. `TRUSTED_PROXIES=0.0.0.0/0` so rate limits key on the browser behind Render.
    - Copy the `*.onrender.com` URL (REST is at the root, not `/api`).
 3. **Vercel** — Import the repo, **Root Directory `rsp-client`**. [`rsp-client/vercel.json`](rsp-client/vercel.json) rewrites SPA routes to `index.html`.
-   - Build env: `VITE_API_BASE=https://<rsp-api>.onrender.com` (no trailing slash, no `/api` prefix), `VITE_WS_URL=wss://<rsp-api>.onrender.com/ws`, optional `VITE_GOOGLE_CLIENT_ID`.
+   - Build env: `VITE_API_BASE=https://<rsp-api>.onrender.com` (no trailing slash, no `/api` prefix), `VITE_WS_URL=wss://<rsp-api>.onrender.com/ws`, optional `VITE_GOOGLE_CLIENT_ID`. The Vercel build (`VERCEL=1`) **fails** if either URL is missing or not absolute `https://` / `wss://` — a relative `/api` would 200 `index.html` from the SPA rewrite. Local `npm run build` does not require them.
    - Production origin e.g. `https://<app>.vercel.app` must be listed in Render `CORS_ORIGINS` (REST CORS **and** WebSocket `CheckOrigin`).
 4. Confirm: `GET https://<rsp-api>.onrender.com/health` → `{"status":"ok","phase":6}`. `GET /ready` pings Postgres. Open the Vercel URL, wait out a cold start if needed, create a room.
 
@@ -187,6 +187,8 @@ docker compose -f docker-compose.prod.yml up --build
 # GET http://localhost/health  (via nginx → /api/health)
 ```
 
+The API image runs `migrate up` in its entrypoint (`RUN_MIGRATIONS=1`) before it listens; there is no separate migrate service (that image prints the DSN on failure, and `restart: on-failure` plus `service_completed_successfully` would hang on bad creds). If migrations fail the API container exits non-zero with redacted logs.
+
 Compose interpolation refuses to start if `POSTGRES_PASSWORD`, `JWT_SECRET`, `CORS_ORIGINS`, `PUBLIC_BASE_URL`, or `EMAIL_PROVIDER` is missing. The API process also refuses `APP_ENV=production` with a missing/dev `JWT_SECRET`, `EMAIL_PROVIDER=log`, empty `CORS_ORIGINS`, or empty `DATABASE_URL`.
 
 Liveness is `GET /health` (process up). Readiness is `GET /ready` (Postgres ping) — that is the Compose healthcheck.
@@ -200,7 +202,7 @@ Who: **operator** (you) unless noted. Never commit `.env`.
 | `APP_ENV` | Render (API); local | prod: yes | `production` / `dev` | Enables prod boot checks; hides `/dev/guest` |
 | `PORT` | Render (injected) | Render sets it | `10000` | Listen port when `HTTP_ADDR` is empty |
 | `HTTP_ADDR` | local / Compose | no | `:8080` | Listen address; wins over `PORT` |
-| `RUN_MIGRATIONS` | Render (API image) | no (default `1`) | `1` / `0` | Entrypoint `migrate up` before listen |
+| `RUN_MIGRATIONS` | Render / prod Compose (API image) | no (default `1`) | `1` / `0` | Entrypoint `migrate up` before listen |
 | `DATABASE_URL` | Render, `make migrate-up`, local | prod: yes | `postgres://postgres.<ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:6543/postgres?sslmode=require` | API Postgres (pooler OK). Local: `postgres://rsp:rsp@localhost:5433/rsp?sslmode=disable` |
 | `DATABASE_URL_MIGRATE` | Render | recommended on Supabase | `postgres://postgres:<PASSWORD>@db.<ref>.supabase.co:5432/postgres?sslmode=require` | Direct DSN for golang-migrate; falls back to `DATABASE_URL` |
 | `POSTGRES_USER` | local / Compose | no | `rsp` | Compose database user |

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/smtp"
 	"strings"
+
+	"github.com/Teerapat-M/rsp-project/internal/redact"
 )
 
 // Sender delivers a password-reset link. Dev uses LogSender.
@@ -57,7 +59,7 @@ func (s ResendSender) SendPasswordReset(ctx context.Context, to, resetURL string
 	req.Header.Set("Content-Type", "application/json")
 	res, err := client.Do(req)
 	if err != nil {
-		return err
+		return redact.Error(err)
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
@@ -97,7 +99,10 @@ func (s SMTPSender) SendPasswordReset(_ context.Context, to, resetURL string) er
 	if s.User != "" {
 		auth = smtp.PlainAuth("", s.User, s.Password, s.Host)
 	}
-	return smtp.SendMail(addr, auth, s.From, []string{to}, []byte(msg))
+	if err := smtp.SendMail(addr, auth, s.From, []string{to}, []byte(msg)); err != nil {
+		return redact.Error(err)
+	}
+	return nil
 }
 
 // SenderFromEnv picks log / resend / smtp. Unknown values fall back to log.
