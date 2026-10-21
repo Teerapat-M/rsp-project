@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ACTIVE_ROOM_KEY, playPath, readActiveRoom, resolvePlayRoom, writeActiveRoom } from './playRoom'
+import {
+  ACTIVE_ROOM_KEY,
+  activeRoomKey,
+  playPath,
+  readActiveRoom,
+  resolvePlayRoom,
+  writeActiveRoom,
+} from './playRoom'
 
 function memStorage(init?: Record<string, string>) {
   const data = { ...(init ?? {}) }
@@ -31,12 +38,14 @@ describe('resolvePlayRoom', () => {
 })
 
 describe('active room storage', () => {
-  it('round-trips and clears', () => {
+  it('keys by user id so a new tab can restore', () => {
     const s = memStorage()
-    writeActiveRoom('room-1', s)
-    expect(s.data[ACTIVE_ROOM_KEY]).toBe('room-1')
-    expect(readActiveRoom(s)).toBe('room-1')
-    writeActiveRoom(null, s)
-    expect(readActiveRoom(s)).toBe(null)
+    writeActiveRoom('room-1', { userId: 'u1', storage: s })
+    expect(s.data[activeRoomKey('u1')]).toBe('room-1')
+    expect(s.data[ACTIVE_ROOM_KEY]).toBeUndefined()
+    expect(readActiveRoom({ userId: 'u1', storage: s })).toBe('room-1')
+    expect(readActiveRoom({ userId: 'u2', storage: s })).toBe(null)
+    writeActiveRoom(null, { userId: 'u1', storage: s })
+    expect(readActiveRoom({ userId: 'u1', storage: s })).toBe(null)
   })
 })

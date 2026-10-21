@@ -147,6 +147,48 @@ func TestRESTCreateJoinLeave(t *testing.T) {
 	decode(t, res, nil)
 }
 
+func TestActiveRoom(t *testing.T) {
+	ts := newTestAPI(t)
+	defer ts.Close()
+
+	res := doJSON(t, ts, http.MethodGet, "/me/active-room", "alice", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("empty status %d", res.StatusCode)
+	}
+	var body struct {
+		Room *rooms.Room `json:"room"`
+	}
+	decode(t, res, &body)
+	if body.Room != nil {
+		t.Fatalf("want null room, got %+v", body.Room)
+	}
+
+	res = doJSON(t, ts, http.MethodPost, "/rooms", "alice", map[string]int{"winsToFinish": 1, "turnSeconds": 10})
+	var room rooms.Room
+	decode(t, res, &room)
+
+	res = doJSON(t, ts, http.MethodGet, "/me/active-room", "alice", nil)
+	decode(t, res, &body)
+	if body.Room == nil || body.Room.ID != room.ID {
+		t.Fatalf("seated: %+v want %s", body.Room, room.ID)
+	}
+
+	res = doJSON(t, ts, http.MethodGet, "/me/active-room", "bob", nil)
+	decode(t, res, &body)
+	if body.Room != nil {
+		t.Fatalf("stranger: %+v", body.Room)
+	}
+
+	res = doJSON(t, ts, http.MethodPost, "/rooms/"+room.ID+"/leave", "alice", nil)
+	decode(t, res, nil)
+
+	res = doJSON(t, ts, http.MethodGet, "/me/active-room", "alice", nil)
+	decode(t, res, &body)
+	if body.Room != nil {
+		t.Fatalf("after leave: %+v", body.Room)
+	}
+}
+
 func TestGetRoomRequiresMembership(t *testing.T) {
 	ts := newTestAPI(t)
 	defer ts.Close()

@@ -67,7 +67,7 @@ func (h *Hub) beginMatchLocked(s *session, playerID string, rematch bool) error 
 		mem.ready = false
 	}
 
-	s.broadcastLocked(event{"type": "room.updated", "room": s.snapshotLocked()})
+	s.broadcastLocked(event{"type": "room.updated", "room": s.publishLocked()})
 	h.sendViewsLocked(s, "match.started")
 	h.startClockLocked(s)
 	return nil

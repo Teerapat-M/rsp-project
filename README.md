@@ -74,6 +74,8 @@ curl -s -X POST http://localhost:8080/rooms/join \
 # third player → {"code":"ROOM_FULL", ...}
 
 curl -s http://localhost:8080/rooms/<id> -H 'X-Player-ID: alice'
+curl -s http://localhost:8080/me/active-room -H 'X-Player-ID: alice'
+# { "room": { ... } } or { "room": null } — used so a new tab can restore /play
 ```
 
 WebSocket (after joining):

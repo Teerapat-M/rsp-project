@@ -49,6 +49,7 @@ func (s *Server) Router() *gin.Engine {
 	authed.GET("/rooms/:id", s.getRoom)
 	authed.POST("/rooms/:id/leave", s.leaveRoom)
 	authed.POST("/rooms/:id/start", s.startRoom)
+	authed.GET("/me/active-room", s.getActiveRoom)
 	authed.GET("/stats", requireRegistered, s.getStats)
 	authed.GET("/matches", requireRegistered, s.listMatches)
 	authed.GET("/matches/:id", s.getMatch)
@@ -173,6 +174,15 @@ func (s *Server) joinRoom(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, room)
+}
+
+func (s *Server) getActiveRoom(c *gin.Context) {
+	room, err := s.Hub.ActiveRoomFor(playerFrom(c).ID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"room": nil})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"room": room})
 }
 
 func (s *Server) getRoom(c *gin.Context) {

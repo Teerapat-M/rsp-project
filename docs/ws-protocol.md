@@ -25,7 +25,7 @@ On connect the server sends `room.updated` (and `presence` if anyone else is wat
 | `presence` | Socket up/down | `{ "playerId", "connected", "reconnectSeconds" }` |
 | `player.disconnected` | Last socket for a player closed; grace started | `{ "playerId", "reconnectSeconds" }` |
 | `player.reconnected` | They came back before the grace timer | `{ "playerId" }` |
-| `lobby.ready` | Waiting-room ready flag | `{ "playerId", "playerReady", "ready", "need" }` |
+| `lobby.ready` | Waiting-room ready flag | `{ "playerId", "playerReady", "ready", "need", "seq" }` — `seq` matches the `room.updated` snapshot sent just before this frame |
 | `match.started` | Host started, or both players chose Play Again | `{ "view": PlayerView }` — **per player** (hidden opponent move) |
 | `tick` | Once a second during a turn | `{ "remainingSeconds": n }` |
 | `view` | After submit / one-sided ready / reconnect | `{ "view": PlayerView }` |
@@ -38,7 +38,7 @@ On connect the server sends `room.updated` (and `presence` if anyone else is wat
 | `pong` | Reply to `ping` | `{}` |
 | `error` | Bad client message | `{ "code", "message" }` |
 
-`Room` / `RoomPlayer` match `rsp-client/src/types.ts` (camelCase) plus `ready` and `connected` on each player. Each `RoomPlayer` includes that user's `users.avatar` / `users.color` (the profile picture from guest picker / `user_profile`), not the throw they played.
+`Room` / `RoomPlayer` match `rsp-client/src/types.ts` (camelCase) plus `ready` and `connected` on each player. Broadcast snapshots include monotonic `seq`; clients drop `room.updated` / `lobby.ready` frames with a lower `seq` (a previous socket can otherwise deliver a 1/2 ready snapshot after 2/2). Each `RoomPlayer` includes that user's `users.avatar` / `users.color` (the profile picture from guest picker / `user_profile`), not the throw they played.
 
 `PlayerView` / `RoundResultView` match the same file. `yourMove` is this player's card (or `""`). The opponent's current card is omitted until `round.resolved`. History on the view reveals both moves for **completed** rounds only. `view.you.avatar` and `opponentAvatar` are the same profile pictures as the room snapshot.
 

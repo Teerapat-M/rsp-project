@@ -3,6 +3,7 @@ import { api } from '../api'
 import { secondsUntil, watchNextRound } from '../lib/nextRound'
 import { writeActiveRoom } from '../lib/playRoom'
 import { RECONNECT_GRACE_SEC, RECONNECT_MAX_ATTEMPTS, reconnectDelayMs } from '../lib/reconnect'
+import { applyLobbyReady, applyRoomSnapshot } from '../lib/roomSync'
 import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } from '../types'
 
 type JoinError = { code: 'WRONG_PASSCODE' | 'ROOM_FULL'; passcode: string; message: string } | null
@@ -51,17 +52,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const retryRef = useRef(0)
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const attachRef = useRef<(id: string) => void>(() => {})
+  const liveRef = useRef(false)
+  const connectingRef = useRef(false)
 
   const attach = useCallback((id: string) => {
+    if (roomId.current === id && conn.current && (liveRef.current || connectingRef.current)) {
+      writeActiveRoom(id)
+      return
+    }
     conn.current?.close()
     roomId.current = id
+    liveRef.current = false
+    connectingRef.current = true
     writeActiveRoom(id)
     conn.current = api.connectMatch(id, {
       onEvent: (ev) => {
         if (ev.type === 'room.updated') {
-          setRoom({ ...ev.room, players: ev.room.players.map((p) => ({ ...p })) })
+          setRoom((prev) => applyRoomSnapshot(prev, ev.room))
+        }
+        if (ev.type === 'lobby.ready') {
+          setRoom((prev) => applyLobbyReady(prev, ev))
         }
         if (ev.type === 'match.started') {
+          if (roomId.current) writeActiveRoom(roomId.current)
           setView(ev.view)
           setRoundResult(null)
           setNextRoundLeft(null)
@@ -89,6 +102,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setRemaining(ev.view.remainingSeconds)
         }
         if (ev.type === 'match.finished') {
+          writeActiveRoom(null)
           setView(ev.view)
           setRoundResult(null)
           setNextRoundLeft(null)
@@ -97,6 +111,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setView(ev.view)
         }
         if (ev.type === 'connection.lost') {
+          liveRef.current = false
+          connectingRef.current = false
           setConnectionLost(true)
           setReconnectGraceLeft(RECONNECT_GRACE_SEC)
           const next = retryRef.current + 1
@@ -109,6 +125,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
           }
         }
         if (ev.type === 'connection.restored') {
+          liveRef.current = true
+          connectingRef.current = false
           setConnectionLost(false)
           setReconnectGraceLeft(RECONNECT_GRACE_SEC)
           retryRef.current = 0
@@ -202,9 +220,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       leaveRoom: async () => {
         const id = roomId.current
         roomId.current = null
+        liveRef.current = false
+        connectingRef.current = false
         writeActiveRoom(null)
         if (id) await api.leaveRoom(id)
         conn.current?.close()
+        conn.current = null
         setRoom(null)
         setView(null)
         setRoundResult(null)
@@ -216,7 +237,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       attach,
       loadRoom: async (id) => {
         const r = await api.getRoom(id)
-        setRoom(r)
+        setRoom((prev) => applyRoomSnapshot(prev, r))
         attach(id)
         return r
       },
@@ -226,6 +247,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       claimWin: () => conn.current?.send({ type: 'claim_win' }),
       playAgain: () => conn.current?.send({ type: 'play_again' }),
       retryConnection: () => {
+        liveRef.current = false
+        connectingRef.current = false
         retryRef.current = 0
         setReconnectAttempt(0)
         setConnectionLost(false)

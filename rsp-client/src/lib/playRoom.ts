@@ -3,14 +3,25 @@ export const ACTIVE_ROOM_KEY = 'rsp.activeRoom'
 type Reader = Pick<Storage, 'getItem'>
 type Writer = Pick<Storage, 'setItem' | 'removeItem'>
 
+export type ActiveRoomStore = {
+  userId?: string | null
+  storage?: Reader & Partial<Writer>
+}
+
 export function playPath(roomId: string): string {
   return `/play?room=${encodeURIComponent(roomId)}`
 }
 
-export function readActiveRoom(storage: Reader | undefined = defaultSession()): string | null {
-  if (!storage) return null
+export function activeRoomKey(userId: string): string {
+  return `${ACTIVE_ROOM_KEY}.${userId}`
+}
+
+export function readActiveRoom(opts: ActiveRoomStore | undefined = undefined): string | null {
+  const uid = opts?.userId ?? currentUserId()
+  const storage = opts?.storage ?? defaultLocal()
+  if (!uid || !storage) return null
   try {
-    const v = storage.getItem(ACTIVE_ROOM_KEY)?.trim()
+    const v = storage.getItem(activeRoomKey(uid))?.trim()
     return v || null
   } catch {
     return null
@@ -19,18 +30,21 @@ export function readActiveRoom(storage: Reader | undefined = defaultSession()): 
 
 export function writeActiveRoom(
   id: string | null,
-  storage: Writer | undefined = defaultSession(),
+  opts: ActiveRoomStore | undefined = undefined,
 ): void {
-  if (!storage) return
+  const uid = opts?.userId ?? currentUserId()
+  const storage = (opts?.storage as Writer | undefined) ?? defaultLocal()
+  if (!uid || !storage) return
   try {
-    if (id) storage.setItem(ACTIVE_ROOM_KEY, id)
-    else storage.removeItem(ACTIVE_ROOM_KEY)
+    const key = activeRoomKey(uid)
+    if (id) storage.setItem(key, id)
+    else storage.removeItem(key)
   } catch {
     // private mode / missing storage
   }
 }
 
-/** Prefer the URL, then the persisted tab room, then in-memory state. */
+/** Prefer the URL, then the persisted room, then in-memory state. */
 export function resolvePlayRoom(opts: {
   query: string | null | undefined
   stored: string | null | undefined
@@ -43,9 +57,21 @@ export function resolvePlayRoom(opts: {
   return null
 }
 
-function defaultSession(): Storage | undefined {
+function currentUserId(): string | null {
   try {
-    return typeof sessionStorage === 'undefined' ? undefined : sessionStorage
+    if (typeof localStorage === 'undefined') return null
+    const raw = localStorage.getItem('rsp.user')
+    if (!raw) return null
+    const u = JSON.parse(raw) as { id?: string }
+    return u.id?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function defaultLocal(): Storage | undefined {
+  try {
+    return typeof localStorage === 'undefined' ? undefined : localStorage
   } catch {
     return undefined
   }

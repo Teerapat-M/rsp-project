@@ -39,6 +39,7 @@ export type Room = {
   turnSeconds: number
   status: RoomStatus
   players: RoomPlayer[]
+  seq?: number
 }
 
 export type MatchStatus = 'playing' | 'finished'
@@ -149,6 +150,7 @@ export type ApiError = {
 
 export type WsEvent =
   | { type: 'room.updated'; room: Room }
+  | { type: 'lobby.ready'; playerId: string; playerReady: boolean; ready: number; need: number; seq?: number }
   | { type: 'match.started'; view: PlayerView }
   | { type: 'tick'; remainingSeconds: number }
   | { type: 'view'; view: PlayerView }

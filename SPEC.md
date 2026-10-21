@@ -162,7 +162,7 @@ Each phase is one PR. Do not fold later phases into this one.
 
 - [x] `POST /rooms` with `winsToFinish` / `turnSeconds` mints a unique 6-digit passcode, persists `rooms` + host in `room_players`
 - [x] `POST /rooms/join` by passcode; `WRONG_PASSCODE` (404) and `ROOM_FULL` (409) match the React client in `rsp-client/`
-- [x] `POST /rooms/:id/leave` and `GET /rooms/:id`
+- [x] `POST /rooms/:id/leave`, `GET /rooms/:id`, and `GET /me/active-room` (live waiting/playing seat so a new tab can restore `/play`)
 - [x] `GET /ws?room=` — JWT via `Sec-WebSocket-Protocol: bearer.<jwt>` (or `?token=` / `Authorization`); join/leave/presence, lobby ready, disconnect grace; types in `docs/ws-protocol.md`
 - [x] In-memory hub (mutex per room + map mutex), empty rooms closed and dropped so passcodes reuse
 - [x] Dev identity: `X-Player-ID` or `POST /dev/guest` (JWT from phase 4 onward; those shortcuts stay `APP_ENV=dev` only)

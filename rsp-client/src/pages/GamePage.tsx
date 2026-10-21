@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -21,9 +21,10 @@ import { RoundResultPicks } from '../components/RoundResultPicks'
 import { Modal } from '../components/Modal'
 import { Timer } from '../components/Timer'
 import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
+import { api } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
-import { playPath, readActiveRoom, resolvePlayRoom } from '../lib/playRoom'
+import { playPath, readActiveRoom, resolvePlayRoom, writeActiveRoom } from '../lib/playRoom'
 import { opponentInRoom, youInRoom } from '../lib/profile'
 import { RECONNECT_MAX_ATTEMPTS, formatGrace } from '../lib/reconnect'
 import type { PlayableMove, RoundResultView } from '../types'
@@ -35,9 +36,44 @@ export function GamePage() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const roomQ = params.get('room')
+  const [serverId, setServerId] = useState<string | null>(null)
+  const [waitingId, setWaitingId] = useState<string | null>(null)
+  const [lookupDone, setLookupDone] = useState(Boolean(roomQ || game.room?.id))
+  const lookupStarted = useRef(false)
+
+  useEffect(() => {
+    if (roomQ || game.room?.id || !user || lookupStarted.current) return
+    lookupStarted.current = true
+    let cancelled = false
+    ;(async () => {
+      try {
+        const active = await api.getActiveRoom()
+        if (cancelled) return
+        if (active?.id) {
+          writeActiveRoom(active.id, { userId: user.id })
+          if (active.status === 'waiting') {
+            setWaitingId(active.id)
+          } else {
+            setServerId(active.id)
+          }
+        } else {
+          writeActiveRoom(null, { userId: user.id })
+          setServerId(null)
+        }
+      } catch {
+        if (!cancelled) setServerId(readActiveRoom({ userId: user.id }))
+      } finally {
+        if (!cancelled) setLookupDone(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [roomQ, game.room?.id, user])
+
   const roomId = resolvePlayRoom({
     query: roomQ,
-    stored: readActiveRoom(),
+    stored: lookupDone ? serverId : null,
     live: game.room?.id ?? null,
   })
 
@@ -47,16 +83,28 @@ export function GamePage() {
       nav(playPath(roomId), { replace: true })
       return
     }
-    if (!(game.view && game.room?.id === roomQ)) {
-      attach(roomQ)
+    attach(roomQ)
+  }, [roomId, roomQ, attach, nav])
+
+  useEffect(() => {
+    if (!game.view && game.room?.status === 'waiting') {
+      nav(`/room/${game.room.id}`, { replace: true })
     }
-  }, [roomId, roomQ, attach, nav, game.view, game.room?.id])
+  }, [game.view, game.room, nav])
 
   useEffect(() => {
     if (game.view?.finished && !game.roundResult) nav('/result')
   }, [game.view, game.roundResult, nav])
 
   if (!user) return null
+  if (waitingId) return <Navigate to={`/room/${waitingId}`} replace />
+  if (!roomId && !lookupDone) {
+    return (
+      <AppShell header={false}>
+        <p className="hint">Connecting…</p>
+      </AppShell>
+    )
+  }
   if (!roomId) return <Navigate to="/lobby" replace />
   if (game.roundResult) return <RoundResult />
   if (!game.view && !game.room) {
