@@ -39,11 +39,12 @@ func main() {
 
 	playSubmittedMatch(base, wsBase)
 	playTimeoutRound(base, wsBase)
-	fmt.Println("smoke ok: first-to-1 match, timeout auto-pick, stats, and history against", base)
+	playFirstToThreeWithDraw(base, wsBase)
+	fmt.Println("smoke ok: first-to-1, timeout auto-pick, first-to-3 with draw, stats, and history against", base)
 }
 
 func playSubmittedMatch(base, wsBase string) {
-	a, _, roomID, wa, wb := seatAndConnect(base, wsBase, 1, 15)
+	a, _, roomID, wa, wb := seatAndConnect(base, wsBase, 1, 15, "rock", "paper")
 	defer wa.Close()
 	defer wb.Close()
 
@@ -80,7 +81,7 @@ func playSubmittedMatch(base, wsBase string) {
 }
 
 func playTimeoutRound(base, wsBase string) {
-	a, _, roomID, wa, wb := seatAndConnect(base, wsBase, 1, 1)
+	a, _, roomID, wa, wb := seatAndConnect(base, wsBase, 1, 1, "rock", "paper")
 	defer wa.Close()
 	defer wb.Close()
 
@@ -129,11 +130,84 @@ func playTimeoutRound(base, wsBase string) {
 	}
 }
 
-func seatAndConnect(base, wsBase string, winsToFinish, turnSeconds int) (session, session, string, *websocket.Conn, *websocket.Conn) {
-	a := guest(base, "SmokeA")
-	b := guest(base, "SmokeB")
+func playFirstToThreeWithDraw(base, wsBase string) {
+	a, b, roomID, wa, wb := seatAndConnect(base, wsBase, 3, 15, "paper", "scissors")
+	defer wa.Close()
+	defer wb.Close()
+
+	mustStatus(http.StatusNoContent, postRaw(base+"/rooms/"+roomID+"/start", a.Access, nil))
+	started := waitStarted(wa)
+	waitStarted(wb)
+	view, _ := started["view"].(map[string]any)
+	you, _ := view["you"].(map[string]any)
+	if str(you["avatar"]) != "paper" {
+		log.Fatalf("self profile avatar on match.started: %v", you)
+	}
+	if str(view["opponentAvatar"]) != "scissors" {
+		log.Fatalf("opponent profile avatar on match.started: %v", view)
+	}
+
+	playRound(wa, wb, "rock", "rock")
+	draw := waitType(wa, "round.resolved")
+	result, _ := draw["result"].(map[string]any)
+	if result["draw"] != true || result["matchOver"] == true {
+		log.Fatalf("round 1 should draw: %+v", result)
+	}
+	waitType(wa, "round.started")
+	waitType(wb, "round.started")
+
+	playRound(wa, wb, "rock", "scissors")
+	r2 := waitType(wa, "round.resolved")
+	result, _ = r2["result"].(map[string]any)
+	if result["youWon"] != true || result["matchOver"] == true {
+		log.Fatalf("round 2 A should win 1-0: %+v", result)
+	}
+	waitType(wa, "round.started")
+	waitType(wb, "round.started")
+
+	playRound(wa, wb, "scissors", "paper")
+	r3 := waitType(wa, "round.resolved")
+	result, _ = r3["result"].(map[string]any)
+	if result["youWon"] != true || result["matchOver"] == true {
+		log.Fatalf("round 3 A should win 2-0: %+v", result)
+	}
+	waitType(wa, "round.started")
+	waitType(wb, "round.started")
+
+	playRound(wa, wb, "paper", "rock")
+	r4 := waitType(wa, "round.resolved")
+	result, _ = r4["result"].(map[string]any)
+	if result["youWon"] != true || result["matchOver"] != true {
+		log.Fatalf("round 4 A should win the match 3-0: %+v", result)
+	}
+	fin := waitType(wa, "match.finished")
+	finView, _ := fin["view"].(map[string]any)
+	if str(finView["winnerId"]) != a.ID {
+		log.Fatalf("first-to-3 winner %v want %s", finView["winnerId"], a.ID)
+	}
+	_ = b
+}
+
+func playRound(a, b *websocket.Conn, moveA, moveB string) {
+	must(a.WriteJSON(map[string]string{"type": "submit", "move": moveA}))
+	must(b.WriteJSON(map[string]string{"type": "submit", "move": moveB}))
+	must(a.WriteJSON(map[string]string{"type": "ready"}))
+	must(b.WriteJSON(map[string]string{"type": "ready"}))
+}
+
+func seatAndConnect(base, wsBase string, winsToFinish, turnSeconds int, avatarA, avatarB string) (session, session, string, *websocket.Conn, *websocket.Conn) {
+	a := guest(base, "SmokeA", avatarA)
+	b := guest(base, "SmokeB", avatarB)
 	room := postJSON(base+"/rooms", a.Access, map[string]int{"winsToFinish": winsToFinish, "turnSeconds": turnSeconds})
-	_ = postJSON(base+"/rooms/join", b.Access, map[string]string{"passcode": str(room["passcode"])})
+	players, _ := room["players"].([]any)
+	if len(players) > 0 {
+		host, _ := players[0].(map[string]any)
+		if str(host["avatar"]) != avatarA {
+			log.Fatalf("create-room snapshot avatar=%v want %s", host["avatar"], avatarA)
+		}
+	}
+	joined := postJSON(base+"/rooms/join", b.Access, map[string]string{"passcode": str(room["passcode"])})
+	assertRoomAvatars(joined, a.ID, avatarA, b.ID, avatarB)
 	roomID := str(room["id"])
 
 	wa := dialWS(wsBase + "/ws?token=" + a.Access + "&room=" + roomID)
@@ -150,9 +224,12 @@ type session struct {
 	ID     string
 }
 
-func guest(base, name string) session {
-	raw := postJSON(base+"/auth/guest", "", map[string]string{"displayName": name, "avatar": "rock", "color": "#9DB89A"})
+func guest(base, name, avatar string) session {
+	raw := postJSON(base+"/auth/guest", "", map[string]string{"displayName": name, "avatar": avatar, "color": "#9DB89A"})
 	user, _ := raw["user"].(map[string]any)
+	if str(user["avatar"]) != avatar {
+		log.Fatalf("guest %s profile avatar=%v want %s", name, user["avatar"], avatar)
+	}
 	return session{Access: str(raw["accessToken"]), ID: str(user["id"])}
 }
 

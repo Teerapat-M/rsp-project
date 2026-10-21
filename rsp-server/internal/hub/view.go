@@ -59,10 +59,15 @@ type roundResultView struct {
 	Draw               bool           `json:"draw"`
 	Scores             map[string]int `json:"scores"`
 	NextRoundIn        int            `json:"nextRoundIn"`
+	NextRoundAt        time.Time      `json:"nextRoundAt"`
 	MatchOver          bool           `json:"matchOver"`
 }
 
 func (h *Hub) playerViewLocked(s *session, you ident.Player) playerView {
+	if m, ok := s.findLocked(you.ID); ok {
+		you = m.player
+	}
+	you = you.WithDefaults()
 	v := playerView{
 		RoomID:      s.id,
 		MatchID:     s.matchID,
@@ -80,6 +85,7 @@ func (h *Hub) playerViewLocked(s *session, you ident.Player) playerView {
 	}
 	opp, oppMem := s.opponentLocked(you.ID)
 	if oppMem != nil {
+		opp = opp.WithDefaults()
 		v.OpponentID = opp.ID
 		v.OpponentName = opp.DisplayName
 		v.OpponentAvatar = opp.Avatar
@@ -147,7 +153,7 @@ func roundsJSON(in []game.ResolvedRound) []roundJSON {
 	return out
 }
 
-func (h *Hub) resultViewLocked(s *session, you ident.Player, rr *game.ResolvedRound) roundResultView {
+func (h *Hub) resultViewLocked(s *session, you ident.Player, rr *game.ResolvedRound, nextAt time.Time) roundResultView {
 	opp, _ := s.opponentLocked(you.ID)
 	scores := map[string]int{}
 	if s.match != nil {
@@ -172,6 +178,7 @@ func (h *Hub) resultViewLocked(s *session, you ident.Player, rr *game.ResolvedRo
 		Draw:               rr.Draw,
 		Scores:             scores,
 		NextRoundIn:        pause,
+		NextRoundAt:        nextAt,
 		MatchOver:          over,
 	}
 }

@@ -102,7 +102,11 @@ export const httpApi: ApiClient = {
     }).catch(() => undefined)
     clearSession()
   },
-  me: () => req<User>('/auth/me'),
+  me: async () => {
+    const user = await req<User>('/auth/me')
+    localStorage.setItem('rsp.user', JSON.stringify(user))
+    return user
+  },
   createRoom: (body: CreateRoomBody) => req<Room>('/rooms', { method: 'POST', body: JSON.stringify(body) }),
   joinRoom: (passcode: string) => req<Room>('/rooms/join', { method: 'POST', body: JSON.stringify({ passcode }) }),
   leaveRoom: (roomId: string) => req<void>(`/rooms/${roomId}/leave`, { method: 'POST' }),

@@ -22,7 +22,8 @@ import { Timer } from '../components/Timer'
 import { IconCheck, IconClock, IconHourglass, IconLock, IconRefresh, IconTrophy, IconWifiOff } from '../components/Icons'
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
-import type { PlayableMove } from '../types'
+import { opponentInRoom, youInRoom } from '../lib/profile'
+import type { PlayableMove, RoundResultView } from '../types'
 
 export function GamePage() {
   const { user } = useAuth()
@@ -308,17 +309,19 @@ function DraggableCard({
 
 function ScoreBar() {
   const { user } = useAuth()
-  const { view, remaining, roundResult } = useGame()
+  const { view, remaining, roundResult, room } = useGame()
   if (!user || !view) return null
-  const youScore = view.scores[user.id] ?? 0
-  const oppScore = view.scores[view.opponentId] ?? 0
+  const you = youInRoom(user, view, room)
+  const opp = opponentInRoom(user.id, view, room)
+  const youScore = view.scores[you.id] ?? 0
+  const oppScore = view.scores[opp?.id ?? view.opponentId] ?? 0
   return (
     <div className="scoreBar">
       <div className="scoreSide">
-        <Avatar kind={user.avatar} color={user.color} size={44} />
+        <Avatar kind={you.avatar} color={you.color} size={44} />
         <div className="scoreName">
           <strong>You</strong>
-          <span>{user.displayName}</span>
+          <span>{you.displayName}</span>
         </div>
         <div className="scoreNum">{youScore}</div>
       </div>
@@ -333,9 +336,9 @@ function ScoreBar() {
         <div className="scoreNum">{oppScore}</div>
         <div className="scoreName">
           <strong>Opponent</strong>
-          <span>{view.opponentName}</span>
+          <span>{opp?.displayName ?? view.opponentName}</span>
         </div>
-        <Avatar kind={view.opponentAvatar} color={view.opponentColor} size={44} />
+        <Avatar kind={opp?.avatar ?? view.opponentAvatar} color={opp?.color ?? view.opponentColor} size={44} />
       </div>
     </div>
   )
@@ -343,10 +346,22 @@ function ScoreBar() {
 
 function RoundResult() {
   const { user } = useAuth()
-  const { roundResult, view } = useGame()
+  const { roundResult, view, nextRoundLeft } = useGame()
   if (!user || !roundResult || !view) return null
+  return <RoundResultBody key={roundResult.roundNumber} roundResult={roundResult} nextRoundLeft={nextRoundLeft} />
+}
+
+function RoundResultBody({
+  roundResult,
+  nextRoundLeft,
+}: {
+  roundResult: RoundResultView
+  nextRoundLeft: number | null
+}) {
+  const left = nextRoundLeft ?? roundResult.nextRoundIn
   const title = roundResult.draw ? "It's a draw" : roundResult.youWon ? 'You win this round!' : 'You lose this round'
   const bannerCls = roundResult.draw ? 'banner bannerDraw' : roundResult.youWon ? 'banner' : 'banner bannerLose'
+  const hint = roundResult.matchOver ? 'Heading to the result…' : `Next round in ${left}...`
   return (
     <AppShell header={false}>
       <ScoreBar />
@@ -372,7 +387,7 @@ function RoundResult() {
               {moveLabel(roundResult.opponentMove)}
             </div>
             <RandomBadge show={roundResult.opponentAutoPicked} />
-            {!roundResult.youWon && !roundResult.draw ? (
+            {roundResult.draw ? null : !roundResult.youWon ? (
               <span className="badge badgeOk">Winner</span>
             ) : (
               <span className="badge" style={{ background: '#fde8e8', color: '#dc2626' }}>
@@ -381,7 +396,7 @@ function RoundResult() {
             )}
           </div>
         </div>
-        <p className="hint">Next round in {roundResult.nextRoundIn}...</p>
+        <p className="hint">{hint}</p>
       </div>
     </AppShell>
   )

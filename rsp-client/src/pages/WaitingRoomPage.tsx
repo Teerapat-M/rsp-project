@@ -7,6 +7,7 @@ import { IconCheck, IconClock, IconCopy, IconLogout, IconUsers } from '../compon
 import { useAuth } from '../context/AuthContext'
 import { useGame } from '../context/GameContext'
 import { formatPasscode } from '../lib/format'
+import { seatedAvatar, seatedColor } from '../lib/profile'
 
 export function WaitingRoomPage() {
   const { id } = useParams()
@@ -62,7 +63,7 @@ export function WaitingRoomPage() {
             </div>
             {room.players.map((p) => (
               <div className="playerRow" key={p.id}>
-                <Avatar kind={p.avatar} color={p.color} size={36} />
+                <Avatar kind={seatedAvatar(p, user)} color={seatedColor(p, user)} size={36} />
                 <strong>{p.displayName}</strong>
                 {p.isHost ? (
                   <span className="badge badgeHost">Host</span>

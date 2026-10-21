@@ -197,11 +197,13 @@ func (h *Hub) onResolvedLocked(s *session, rr *game.ResolvedRound) {
 		h.persistFinishLocked(s, winner)
 	}
 
+	nextAt := time.Now().UTC().Add(h.resultPause)
 	for _, mem := range s.members {
 		s.sendToLocked(mem.player.ID, event{
-			"type":   "round.resolved",
-			"result": h.resultViewLocked(s, mem.player, rr),
-			"view":   h.playerViewLocked(s, mem.player),
+			"type":        "round.resolved",
+			"result":      h.resultViewLocked(s, mem.player, rr, nextAt),
+			"view":        h.playerViewLocked(s, mem.player),
+			"nextRoundAt": nextAt,
 		})
 	}
 
@@ -232,8 +234,11 @@ func (h *Hub) onResolvedLocked(s *session, rr *game.ResolvedRound) {
 			return
 		}
 		s.remaining = s.seconds
+		// round.started (not a generic view) so clients leave the result
+		// overlay in lockstep. Clock starts after the snapshot so the first
+		// tick cannot race the transition.
+		h.sendViewsLocked(s, "round.started")
 		h.startClockLocked(s)
-		h.sendViewsLocked(s, "view")
 	})
 }
 

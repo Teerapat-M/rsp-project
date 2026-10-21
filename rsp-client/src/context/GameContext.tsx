@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api'
+import { secondsUntil, watchNextRound } from '../lib/nextRound'
 import type { PlayableMove, PlayerView, Room, RoundResultView, WsConnection } from '../types'
 
 type JoinError = { code: 'WRONG_PASSCODE' | 'ROOM_FULL'; passcode: string; message: string } | null
@@ -9,6 +10,7 @@ type GameCtx = {
   view: PlayerView | null
   remaining: number | null
   roundResult: RoundResultView | null
+  nextRoundLeft: number | null
   connectionLost: boolean
   reconnectAttempt: number
   playAgainReady: number
@@ -34,6 +36,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<PlayerView | null>(null)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [roundResult, setRoundResult] = useState<RoundResultView | null>(null)
+  const [nextRoundLeft, setNextRoundLeft] = useState<number | null>(null)
   const [connectionLost, setConnectionLost] = useState(false)
   const [reconnectAttempt, setReconnectAttempt] = useState(2)
   const [playAgainReady, setPlayAgainReady] = useState(0)
@@ -52,6 +55,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (ev.type === 'match.started') {
           setView(ev.view)
           setRoundResult(null)
+          setNextRoundLeft(null)
           setRemaining(ev.view.remainingSeconds)
           setPlayAgainReady(0)
         }
@@ -61,12 +65,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setRemaining(ev.view.remainingSeconds)
         }
         if (ev.type === 'round.resolved') {
-          setRoundResult(ev.result)
+          const result = {
+            ...ev.result,
+            nextRoundAt: ev.result.nextRoundAt ?? ev.nextRoundAt,
+          }
+          setRoundResult(result)
           setView(ev.view)
+          setNextRoundLeft(secondsUntil(result.nextRoundAt, Date.now(), result.nextRoundIn))
+        }
+        if (ev.type === 'round.started') {
+          setView(ev.view)
+          setRoundResult(null)
+          setNextRoundLeft(null)
+          setRemaining(ev.view.remainingSeconds)
         }
         if (ev.type === 'match.finished') {
           setView(ev.view)
           setRoundResult(null)
+          setNextRoundLeft(null)
         }
         if (ev.type === 'opponent.disconnected' || ev.type === 'opponent.reconnected') {
           setView(ev.view)
@@ -80,12 +96,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => conn.current?.close(), [])
 
+  // Server broadcasts round.started / match.finished after the result pause.
+  // Tick from nextRoundAt so both clients show the same 3, 2, 1. If that event
+  // is late, drop the overlay when the deadline passes.
+  useEffect(() => {
+    if (!roundResult) return
+    const roundNo = roundResult.roundNumber
+    return watchNextRound({
+      nextRoundAt: roundResult.nextRoundAt,
+      nextRoundIn: roundResult.nextRoundIn,
+      onTick: setNextRoundLeft,
+      onDone: () => {
+        setRoundResult((cur) => (cur && cur.roundNumber === roundNo ? null : cur))
+        setNextRoundLeft(null)
+      },
+    })
+  }, [roundResult])
+
   const value = useMemo<GameCtx>(
     () => ({
       room,
       view,
       remaining,
       roundResult,
+      nextRoundLeft,
       connectionLost,
       reconnectAttempt,
       playAgainReady,
@@ -123,6 +157,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setRoom(null)
         setView(null)
         setRoundResult(null)
+        setNextRoundLeft(null)
       },
       startGame: async () => {
         if (room) await api.startGame(room.id)
@@ -144,7 +179,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (roomId.current) attach(roomId.current)
       },
     }),
-    [room, view, remaining, roundResult, connectionLost, reconnectAttempt, playAgainReady, joinError, attach],
+    [room, view, remaining, roundResult, nextRoundLeft, connectionLost, reconnectAttempt, playAgainReady, joinError, attach],
   )
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

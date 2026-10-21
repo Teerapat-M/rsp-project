@@ -191,11 +191,16 @@ func TestDevGuestBearerCreatesRoom(t *testing.T) {
 			ID          string `json:"id"`
 			DisplayName string `json:"displayName"`
 			IsGuest     bool   `json:"isGuest"`
+			Avatar      string `json:"avatar"`
+			Color       string `json:"color"`
 		} `json:"user"`
 	}
 	decode(t, res, &session)
 	if session.AccessToken == "" || session.User.DisplayName != "Mina" || !session.User.IsGuest {
 		t.Fatalf("%+v", session)
+	}
+	if session.User.Avatar != "paper" {
+		t.Fatalf("guest profile avatar %+v", session.User)
 	}
 
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/rooms", bytes.NewBufferString(`{"winsToFinish":2,"turnSeconds":10}`))
@@ -212,6 +217,9 @@ func TestDevGuestBearerCreatesRoom(t *testing.T) {
 	decode(t, res, &room)
 	if room.HostID != session.User.ID {
 		t.Fatalf("host %s want %s", room.HostID, session.User.ID)
+	}
+	if len(room.Players) != 1 || room.Players[0].Avatar != "paper" {
+		t.Fatalf("room snapshot should keep the guest profile avatar, got %+v", room.Players)
 	}
 }
 

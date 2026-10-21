@@ -143,6 +143,7 @@ func (h *Hub) Create(ctx context.Context, host ident.Player, wins, seconds int) 
 	if err != nil {
 		return rooms.Room{}, err
 	}
+	host = host.WithDefaults()
 
 	var persisted rooms.Room
 	for i := 0; i < 12; i++ {
@@ -188,6 +189,7 @@ func (h *Hub) Join(ctx context.Context, player ident.Player, rawCode string) (ro
 	if err != nil {
 		return rooms.Room{}, err
 	}
+	player = player.WithDefaults()
 
 	s, err := h.sessionByPasscode(ctx, code)
 	if err != nil {
@@ -578,7 +580,7 @@ func (h *Hub) attach(s *session, player ident.Player, conn *websocket.Conn) *cli
 		case game.StatusFinished:
 			typ = "match.finished"
 		}
-		s.sendToLocked(player.ID, event{"type": typ, "view": h.playerViewLocked(s, player)})
+		s.sendToLocked(player.ID, event{"type": typ, "view": h.playerViewLocked(s, m.player)})
 		if reconnected && s.match.Status() == game.StatusPlaying && s.allConnectedLocked() {
 			s.paused = false
 			h.startClockLocked(s)

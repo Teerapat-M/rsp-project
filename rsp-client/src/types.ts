@@ -85,6 +85,7 @@ export type RoundResultView = {
   draw: boolean
   scores: Record<string, number>
   nextRoundIn: number
+  nextRoundAt?: string
   matchOver: boolean
 }
 
@@ -149,7 +150,8 @@ export type WsEvent =
   | { type: 'match.started'; view: PlayerView }
   | { type: 'tick'; remainingSeconds: number }
   | { type: 'view'; view: PlayerView }
-  | { type: 'round.resolved'; result: RoundResultView; view: PlayerView }
+  | { type: 'round.resolved'; result: RoundResultView; view: PlayerView; nextRoundAt?: string }
+  | { type: 'round.started'; view: PlayerView }
   | { type: 'match.finished'; view: PlayerView }
   | { type: 'opponent.disconnected'; view: PlayerView }
   | { type: 'opponent.reconnected'; view: PlayerView }
