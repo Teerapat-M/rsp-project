@@ -1,8 +1,8 @@
 # rsp-project
 
-Online Rock-Paper-Scissors. Backend is Go; the React client lands in a later phase.
+Online Rock-Paper-Scissors. Backend is Go; the React client lives in [`web/`](web/).
 
-**You are here: phase 1** — repo scaffold, Postgres schema, and the pure game-rules package. Product spec and the six-phase plan: [SPEC.md](SPEC.md).
+**You are here: phase 1 + UI mock** — repo scaffold, Postgres schema, in-memory game rules, and a clickable React UI backed by a mock API. Product spec and the six-phase plan: [SPEC.md](SPEC.md).
 
 ## Prerequisites
 
@@ -59,6 +59,19 @@ It does not talk to Postgres yet. Rooms (6-digit passcode), WS, and auth (guest 
 | `make up` / `make down` | Compose up (detached) / down |
 | `make migrate-up` | Run migrations from the host (needs [`golang-migrate`](https://github.com/golang-migrate/migrate) CLI) |
 
+## Frontend (React)
+
+The UI is a separate app in `web/` (Vite + TypeScript + dnd-kit). Backend HTTP/WS is not wired yet; the client uses a mock so every screen works.
+
+```bash
+cd web
+npm install
+npm run dev      # http://localhost:5173
+npm run build
+```
+
+Details, mock passcodes, and env vars: [web/README.md](web/README.md).
+
 ## Layout
 
 ```
@@ -67,4 +80,5 @@ internal/game       rules engine (this phase)
 db/migrations       schema
 db/queries          sqlc input (later)
 sqlc.yaml           sqlc config (generate in later phases)
+web/                React + Vite client
 ```

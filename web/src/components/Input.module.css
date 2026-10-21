@@ -1,0 +1,83 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #111b3d;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid #d9dce2;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.field:focus-within {
+  border-color: #5b5fe6;
+  box-shadow: 0 0 0 3px rgba(91, 95, 230, 0.18);
+}
+
+.error .field {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.icon {
+  color: #5f6675;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 16px;
+  color: #111b3d;
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: #8a909c;
+}
+
+.suffix {
+  color: #5f6675;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+}
+
+.suffix button {
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  color: inherit;
+  cursor: pointer;
+}
+
+.hint {
+  font-size: 13px;
+  color: #8a909c;
+}
+
+.err {
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc2626;
+}

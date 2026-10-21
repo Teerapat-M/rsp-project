@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36.563 36.563" fill="none">
+  <g width="36.563" height="36.563" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <path d="M24.375,31.9921875L24.375,28.9453125C24.375,25.579833984375,21.646728515625,22.8515625,18.28125,22.8515625L9.140625,22.8515625C5.775146484375,22.8515625,3.046875,25.579833984375,3.046875,28.9453125L3.046875,31.9921875" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M24.375,31.9921875L24.375,28.9453125C24.375,25.579833984375,21.646728515625,22.8515625,18.28125,22.8515625L9.140625,22.8515625C5.775146484375,22.8515625,3.046875,25.579833984375,3.046875,28.9453125L3.046875,31.9921875" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M24.375,4.765380859375C27.062744140625,5.462158203125,28.939453125,7.887451171875,28.939453125,10.6640625C28.939453125,13.440673828125,27.062744140625,15.865966796875,24.375,16.562744140625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M24.375,4.765380859375C27.062744140625,5.462158203125,28.939453125,7.887451171875,28.939453125,10.6640625C28.939453125,13.440673828125,27.062744140625,15.865966796875,24.375,16.562744140625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M33.515625,31.9921875L33.515625,28.9453125C33.513671875,26.168212890625,31.63427734375,23.743896484375,28.9453125,23.049560546875" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M33.515625,31.9921875L33.515625,28.9453125C33.513671875,26.168212890625,31.63427734375,23.743896484375,28.9453125,23.049560546875" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <ellipse cy="10.6640625" stroke-linejoin="round" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none;" ry="6.09375" fill="none" stroke-linecap="round" rx="6.09375" cx="13.7109375" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <ellipse cx="13.7109375" cy="10.6640625" rx="6.09375" ry="6.09375" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

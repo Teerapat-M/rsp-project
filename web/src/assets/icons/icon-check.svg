@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14.063 14.063" fill="none">
+  <g width="14.063" height="14.063" rx="0" ry="0" style="fill: currentColor;">
+    <g>
+      <g class="fills">
+        <path d="M11.71875,3.515625L5.2734375,9.9609375L2.34375,7.03125" fill="none" stroke-linecap="round" stroke-linejoin="round" style="fill: none;" />
+      </g>
+      <g fill="none" stroke-linecap="round" stroke-linejoin="round" class="strokes">
+        <g class="stroke-shape">
+          <path d="M11.71875,3.515625L5.2734375,9.9609375L2.34375,7.03125" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

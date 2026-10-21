@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.5 22.5" fill="none">
+  <g width="22.5" height="22.5" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <ellipse cy="11.25" stroke-linejoin="round" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none;" ry="9.375" fill="none" stroke-linecap="round" rx="9.375" cx="11.25" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <ellipse cx="11.25" cy="11.25" rx="9.375" ry="9.375" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M14.0625,8.4375L8.4375,14.0625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M14.0625,8.4375L8.4375,14.0625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M8.4375,8.4375L14.0625,14.0625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M8.4375,8.4375L14.0625,14.0625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

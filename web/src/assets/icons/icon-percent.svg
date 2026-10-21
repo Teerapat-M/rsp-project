@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22.5 22.5" fill="none">
+  <g width="22.5" height="22.5" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <path d="M17.8125,4.6875L4.6875,17.8125" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M17.8125,4.6875L4.6875,17.8125" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <ellipse cy="6.09375" stroke-linejoin="round" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none;" ry="2.34375" fill="none" stroke-linecap="round" rx="2.34375" cx="6.09375" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <ellipse cx="6.09375" cy="6.09375" rx="2.34375" ry="2.34375" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <ellipse cy="16.40625" stroke-linejoin="round" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none;" ry="2.34375" fill="none" stroke-linecap="round" rx="2.34375" cx="16.40625" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <ellipse cx="16.40625" cy="16.40625" rx="2.34375" ry="2.34375" transform="matrix(1.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000)" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

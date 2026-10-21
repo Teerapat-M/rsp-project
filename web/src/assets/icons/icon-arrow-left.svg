@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 19.688 19.688" fill="none">
+  <g width="19.688" height="19.688" rx="0" ry="0" style="fill: currentColor;">
+    <g rx="0" ry="0" style="fill: currentColor;">
+      <g>
+        <g class="fills">
+          <path d="M9.84375,15.5859375L4.1015625,9.84375L9.84375,4.1015625" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M9.84375,15.5859375L4.1015625,9.84375L9.84375,4.1015625" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+      <g>
+        <g class="fills">
+          <path d="M15.5859375,9.84375L4.1015625,9.84375" fill="none" stroke-linejoin="round" stroke-linecap="round" style="fill: none;" />
+        </g>
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round" class="strokes">
+          <g class="stroke-shape">
+            <path d="M15.5859375,9.84375L4.1015625,9.84375" style="fill: none; stroke-width: 2; stroke: currentColor; stroke-opacity: 1; stroke-linecap: round;" />
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
